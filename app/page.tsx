@@ -8,6 +8,7 @@ import Header from './components/Header';
 import CareerLinks from './screens/CareerLinks';
 import ApplicationLog from './screens/ApplicationLog';
 import HRPrep from './screens/HRPrep';
+import TechReference from './screens/TechReference';
 import SnippetsPanel from './screens/SnippetsPanel';
 import CompGuide from './screens/CompGuide';
 import ResumeBuilder from './screens/ResumeBuilder';
@@ -18,6 +19,7 @@ const TABS = [
   { id: 'directory', label: 'Career Links' },
   { id: 'log', label: 'Application Log' },
   { id: 'hr', label: 'HR' },
+  { id: 'tech', label: 'Tech Reference' },
   { id: 'snippets', label: 'Snippets' },
   { id: 'comp', label: 'Comp Guide' },
   { id: 'resume', label: 'Resume' },
@@ -57,6 +59,7 @@ export default function Home() {
     companyOverrides, setCompanyOverrides,
     hrQuestions, setHrQuestions,
     snippets, setSnippets,
+    techRefs, setTechRefs,
     resume, setResume,
     coverLetter, setCoverLetter,
     defaultRole, setDefaultRole,
@@ -122,6 +125,10 @@ export default function Home() {
 
       {activeTab === 'hr' && (
         <HRPrep hrQuestions={hrQuestions} setHrQuestions={setHrQuestions} isAdmin={isAdmin} />
+      )}
+
+      {activeTab === 'tech' && (
+        <TechReference techRefs={techRefs} setTechRefs={setTechRefs} isAdmin={isAdmin} />
       )}
 
       {activeTab === 'snippets' && (

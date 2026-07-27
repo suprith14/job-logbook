@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 import { verifySession, COOKIE_NAME } from '../../../lib/auth';
+import { callGeminiForJSONArray } from '../../lib/gemini';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,17 +10,6 @@ export async function POST(request: NextRequest) {
   const session = verifySession(token);
   if (!session || session.role !== 'admin') {
     return Response.json({ error: 'View-only access cannot run searches.' }, { status: 403 });
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return Response.json(
-      {
-        error:
-          'GEMINI_API_KEY is not set. Get a free key at aistudio.google.com/apikey, add it in Vercel → Settings → Environment Variables, then redeploy.',
-      },
-      { status: 500 }
-    );
   }
 
   let existingNames: string[] = [];
@@ -39,38 +29,9 @@ Respond with ONLY a JSON array, no other text, no markdown code fences, in exact
 
 Pick "category" from: "Bangalore product", "Global tech", "Banking / fintech", "IT services", "Remote-first" — or a new short category (2-3 words) if none of those fit.`;
 
-  try {
-    const apiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    );
-
-    if (!apiRes.ok) {
-      const errText = await apiRes.text();
-      return Response.json({ error: `Gemini API error: ${errText}` }, { status: 500 });
-    }
-
-    const data = await apiRes.json();
-    const parts: Array<{ text?: string }> = data.candidates?.[0]?.content?.parts || [];
-    const textBlocks = parts
-      .filter((p) => p.text)
-      .map((p) => p.text)
-      .join('\n');
-
-    const cleaned = textBlocks.replace(/```json|```/g, '').trim();
-    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      return Response.json({ error: 'Could not parse a company list from the response. Try again.' }, { status: 500 });
-    }
-    const companies = JSON.parse(jsonMatch[0]);
-    return Response.json({ companies });
-  } catch (err) {
-    return Response.json({ error: String(err) }, { status: 500 });
+  const { data: companies, error } = await callGeminiForJSONArray(prompt);
+  if (error) {
+    return Response.json({ error }, { status: 500 });
   }
+  return Response.json({ companies });
 }

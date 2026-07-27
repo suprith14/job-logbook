@@ -329,6 +329,34 @@ input:focus, select:focus{border-color:var(--amber-dim);}
   padding-bottom:6px;
   border-bottom:1px solid var(--line);
 }
+.cat-title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+  padding-bottom:6px;
+  border-bottom:1px solid var(--line);
+}
+.cat-title-row .cat-title{margin-bottom:0;padding-bottom:0;border-bottom:none;}
+.cat-title-actions{display:flex;gap:8px;flex-shrink:0;}
+.add-concept-btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  background:transparent;
+  border:1px solid var(--amber-dim);
+  color:var(--amber);
+  padding:4px 10px;
+  border-radius:6px;
+  cursor:pointer;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+.add-concept-btn:hover{background:var(--amber);color:var(--ink);}
+.add-concept-btn:disabled{opacity:0.6;cursor:default;}
+.add-concept-btn:disabled:hover{background:transparent;color:var(--amber);}
 .company-grid{
   display:grid;
   grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
@@ -678,6 +706,27 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 }
 .qa-textarea:focus{border-color:var(--amber-dim);background:var(--surface-raised);}
 .qa-form button{align-self:flex-start;}
+.mono-textarea{font-family:'IBM Plex Mono',monospace !important;font-size:12.5px !important;}
+
+.tech-explanation{
+  font-size:13.5px;
+  line-height:1.55;
+  color:var(--text-muted);
+  margin:0;
+}
+.tech-code{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px;
+  line-height:1.55;
+  background:var(--ink);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:10px 12px;
+  margin:0;
+  overflow-x:auto;
+  white-space:pre;
+  color:var(--teal);
+}
 
 .qa-list{display:flex;flex-direction:column;gap:12px;}
 .qa-card{
@@ -711,6 +760,21 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   padding:1px 8px;
   margin-bottom:5px;
 }
+.difficulty-tag{
+  display:inline-block;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  border-radius:20px;
+  padding:1px 8px;
+  margin-bottom:5px;
+  margin-right:6px;
+  border:1px solid;
+}
+.difficulty-easy{color:var(--teal);border-color:var(--teal);}
+.difficulty-medium{color:var(--amber);border-color:var(--amber-dim);}
+.difficulty-hard{color:var(--rose);border-color:var(--rose);}
 .qa-question{font-weight:600;font-size:14.5px;line-height:1.45;}
 .qa-actions{display:flex;gap:4px;flex-shrink:0;}
 .qa-answer{

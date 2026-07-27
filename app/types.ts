@@ -92,6 +92,17 @@ export interface CoverLetterData {
   closing: string;
 }
 
+export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+
+export interface TechRefEntry {
+  id: string;
+  category: string;
+  topic: string;
+  explanation: string;
+  code: string;
+  difficulty?: Difficulty;
+}
+
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export interface AppSettings {
@@ -106,5 +117,6 @@ export interface PersistedState {
   snippets?: Snippet[];
   resume?: ResumeData;
   coverLetter?: CoverLetterData;
+  techRefs?: TechRefEntry[];
   settings?: AppSettings;
 }

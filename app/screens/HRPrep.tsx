@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Dispatch, SetStateAction, useState, useMemo } from 'react';
+import type { HRQuestion } from '../types';
 
 export const HR_CATEGORIES = ['HR Screening', 'Behavioral', 'Salary & Compensation', 'Situational Judgment'];
 
-export const DEFAULT_HR_QUESTIONS = [
+export const DEFAULT_HR_QUESTIONS: HRQuestion[] = [
   // --- HR Screening ---
   {
     id: 'seed-hs1',
@@ -203,12 +204,25 @@ export const DEFAULT_HR_QUESTIONS = [
   },
 ];
 
-export default function HRPrep({ hrQuestions, setHrQuestions, isAdmin }) {
-  const [newQA, setNewQA] = useState({ question: '', wrongAnswer: '', rightAnswer: '', category: HR_CATEGORIES[0] });
+interface HRPrepProps {
+  hrQuestions: HRQuestion[];
+  setHrQuestions: Dispatch<SetStateAction<HRQuestion[]>>;
+  isAdmin: boolean;
+}
+
+interface NewQAForm {
+  question: string;
+  wrongAnswer: string;
+  rightAnswer: string;
+  category: string;
+}
+
+export default function HRPrep({ hrQuestions, setHrQuestions, isAdmin }: HRPrepProps) {
+  const [newQA, setNewQA] = useState<NewQAForm>({ question: '', wrongAnswer: '', rightAnswer: '', category: HR_CATEGORIES[0] });
   const [hrSearch, setHrSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [editingQAId, setEditingQAId] = useState(null);
-  const [editQABuffer, setEditQABuffer] = useState({ question: '', wrongAnswer: '', rightAnswer: '', category: HR_CATEGORIES[0] });
+  const [editingQAId, setEditingQAId] = useState<string | null>(null);
+  const [editQABuffer, setEditQABuffer] = useState<NewQAForm>({ question: '', wrongAnswer: '', rightAnswer: '', category: HR_CATEGORIES[0] });
 
   function addQA() {
     if (!isAdmin) return;
@@ -223,12 +237,12 @@ export default function HRPrep({ hrQuestions, setHrQuestions, isAdmin }) {
     setNewQA({ question: '', wrongAnswer: '', rightAnswer: '', category: newQA.category });
   }
 
-  function deleteQA(id) {
+  function deleteQA(id: string) {
     if (!isAdmin) return;
     setHrQuestions((prev) => prev.filter((q) => q.id !== id));
   }
 
-  function startEditQA(qa) {
+  function startEditQA(qa: HRQuestion) {
     if (!isAdmin) return;
     setEditingQAId(qa.id);
     setEditQABuffer({
@@ -239,7 +253,7 @@ export default function HRPrep({ hrQuestions, setHrQuestions, isAdmin }) {
     });
   }
 
-  function saveEditQA(id) {
+  function saveEditQA(id: string) {
     const question = editQABuffer.question.trim();
     const rightAnswer = editQABuffer.rightAnswer.trim();
     if (!question || !rightAnswer) return;

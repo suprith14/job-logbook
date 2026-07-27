@@ -1,6 +1,9 @@
 'use client';
 
-export const DEFAULT_COVER_LETTER = {
+import { Dispatch, SetStateAction, useState } from 'react';
+import type { CoverLetterData } from '../types';
+
+export const DEFAULT_COVER_LETTER: CoverLetterData = {
   yourName: 'Your Name',
   yourEmail: 'your.email@example.com',
   yourPhone: '+91 90000 00000',
@@ -48,8 +51,8 @@ const STRUCTURE_TIPS = [
   },
 ];
 
-function buildCoverLetterText(cl) {
-  const lines = [];
+function buildCoverLetterText(cl: CoverLetterData): string {
+  const lines: string[] = [];
   lines.push(cl.yourName);
   lines.push([cl.yourEmail, cl.yourPhone].filter(Boolean).join(' | '));
   lines.push('');
@@ -69,12 +72,30 @@ function buildCoverLetterText(cl) {
   return lines.join('\n').trim() + '\n';
 }
 
-export default function CoverLetterBuilder({ coverLetter, setCoverLetter, isAdmin, copyStatus, onCopy }) {
-  function update(field, value) {
+interface CoverLetterBuilderProps {
+  coverLetter: CoverLetterData;
+  setCoverLetter: Dispatch<SetStateAction<CoverLetterData>>;
+  isAdmin: boolean;
+}
+
+export default function CoverLetterBuilder({ coverLetter, setCoverLetter, isAdmin }: CoverLetterBuilderProps) {
+  const [copyStatus, setCopyStatus] = useState('idle');
+
+  async function onCopy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      return;
+    }
+    setCopyStatus('copied');
+    setTimeout(() => setCopyStatus('idle'), 1500);
+  }
+
+  function update<K extends keyof CoverLetterData>(field: K, value: CoverLetterData[K]) {
     setCoverLetter((prev) => ({ ...prev, [field]: value }));
   }
 
-  function updateAchievement(id, field, value) {
+  function updateAchievement(id: string, field: string, value: string) {
     setCoverLetter((prev) => ({
       ...prev,
       achievements: prev.achievements.map((a) => (a.id === id ? { ...a, [field]: value } : a)),
@@ -88,7 +109,7 @@ export default function CoverLetterBuilder({ coverLetter, setCoverLetter, isAdmi
     }));
   }
 
-  function removeAchievement(id) {
+  function removeAchievement(id: string) {
     setCoverLetter((prev) => ({ ...prev, achievements: prev.achievements.filter((a) => a.id !== id) }));
   }
 

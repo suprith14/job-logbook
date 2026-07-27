@@ -1,6 +1,9 @@
 'use client';
 
-export const DEFAULT_RESUME = {
+import { Dispatch, SetStateAction, useState } from 'react';
+import type { ResumeData } from '../types';
+
+export const DEFAULT_RESUME: ResumeData = {
   name: 'Your Name',
   title: 'Senior Frontend Developer',
   email: 'your.email@example.com',
@@ -47,7 +50,7 @@ export const DEFAULT_RESUME = {
   projects: [],
 };
 
-function splitLines(text) {
+function splitLines(text: string): string[] {
   return (text || '')
     .split('\n')
     .map((l) => l.trim())
@@ -64,8 +67,20 @@ const ACTION_VERBS = [
 
 const UNSAFE_CHAR_RE = /[^\x00-\x7F–—‘’“”]/;
 
-function scoreResume(resume) {
-  const checks = [];
+interface ATSCheck {
+  label: string;
+  passed: boolean;
+  hint: string;
+}
+
+interface ATSResult {
+  score: number;
+  rating: string;
+  checks: ATSCheck[];
+}
+
+function scoreResume(resume: ResumeData): ATSResult {
+  const checks: ATSCheck[] = [];
   const allBullets = (resume.experience || []).flatMap((e) => splitLines(e.bullets));
 
   const contactFilled =
@@ -150,8 +165,8 @@ function scoreResume(resume) {
   return { score, rating, checks };
 }
 
-function buildResumeText(resume) {
-  const lines = [];
+function buildResumeText(resume: ResumeData): string {
+  const lines: string[] = [];
   lines.push(resume.name);
   lines.push(resume.title);
   const contact = [resume.location, resume.phone, resume.email, resume.linkedin, resume.website].filter(Boolean);
@@ -214,14 +229,31 @@ function buildResumeText(resume) {
   return lines.join('\n').trim() + '\n';
 }
 
-export default function ResumeBuilder({ resume, setResume, isAdmin, copyStatus, onCopy }) {
-  const ats = scoreResume(resume);
+interface ResumeBuilderProps {
+  resume: ResumeData;
+  setResume: Dispatch<SetStateAction<ResumeData>>;
+  isAdmin: boolean;
+}
 
-  function update(field, value) {
+export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuilderProps) {
+  const ats = scoreResume(resume);
+  const [copyStatus, setCopyStatus] = useState('idle');
+
+  async function onCopy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      return;
+    }
+    setCopyStatus('copied');
+    setTimeout(() => setCopyStatus('idle'), 1500);
+  }
+
+  function update<K extends keyof ResumeData>(field: K, value: ResumeData[K]) {
     setResume((prev) => ({ ...prev, [field]: value }));
   }
 
-  function updateExperience(id, field, value) {
+  function updateExperience(id: string, field: string, value: string) {
     setResume((prev) => ({
       ...prev,
       experience: prev.experience.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
@@ -238,11 +270,11 @@ export default function ResumeBuilder({ resume, setResume, isAdmin, copyStatus, 
     }));
   }
 
-  function removeExperience(id) {
+  function removeExperience(id: string) {
     setResume((prev) => ({ ...prev, experience: prev.experience.filter((e) => e.id !== id) }));
   }
 
-  function updateEducation(id, field, value) {
+  function updateEducation(id: string, field: string, value: string) {
     setResume((prev) => ({
       ...prev,
       education: prev.education.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
@@ -256,11 +288,11 @@ export default function ResumeBuilder({ resume, setResume, isAdmin, copyStatus, 
     }));
   }
 
-  function removeEducation(id) {
+  function removeEducation(id: string) {
     setResume((prev) => ({ ...prev, education: prev.education.filter((e) => e.id !== id) }));
   }
 
-  function updateProject(id, field, value) {
+  function updateProject(id: string, field: string, value: string) {
     setResume((prev) => ({
       ...prev,
       projects: prev.projects.map((p) => (p.id === id ? { ...p, [field]: value } : p)),
@@ -274,7 +306,7 @@ export default function ResumeBuilder({ resume, setResume, isAdmin, copyStatus, 
     }));
   }
 
-  function removeProject(id) {
+  function removeProject(id: string) {
     setResume((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
   }
 

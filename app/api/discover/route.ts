@@ -1,9 +1,10 @@
 import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { verifySession, COOKIE_NAME } from '../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   const token = cookies().get(COOKIE_NAME)?.value;
   const session = verifySession(token);
   if (!session || session.role !== 'admin') {
@@ -21,7 +22,7 @@ export async function POST(request) {
     );
   }
 
-  let existingNames = [];
+  let existingNames: string[] = [];
   try {
     const body = await request.json();
     existingNames = body.existingNames || [];
@@ -56,7 +57,8 @@ Pick "category" from: "Bangalore product", "Global tech", "Banking / fintech", "
     }
 
     const data = await apiRes.json();
-    const textBlocks = (data.candidates?.[0]?.content?.parts || [])
+    const parts: Array<{ text?: string }> = data.candidates?.[0]?.content?.parts || [];
+    const textBlocks = parts
       .filter((p) => p.text)
       .map((p) => p.text)
       .join('\n');

@@ -1,13 +1,15 @@
 import { Redis } from '@upstash/redis';
 import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { verifySession, COOKIE_NAME } from '../../../lib/auth';
+import type { PersistedState } from '../../types';
 
 export const dynamic = 'force-dynamic';
 
 const STATE_KEY = 'jobtracker:state';
-const EMPTY_STATE = { applications: [], customCompanies: [] };
+const EMPTY_STATE: PersistedState = { applications: [], customCompanies: [] };
 
-function getRedis() {
+function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (!url || !token) {
@@ -31,20 +33,20 @@ export async function GET() {
     return Response.json(EMPTY_STATE);
   }
   try {
-    const data = await redis.get(STATE_KEY);
+    const data = await redis.get<PersistedState>(STATE_KEY);
     return Response.json(data || EMPTY_STATE);
   } catch (err) {
     return Response.json(EMPTY_STATE);
   }
 }
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   const session = getSession();
   if (!session || session.role !== 'admin') {
     return Response.json({ ok: false, error: 'View-only access — changes are not saved.' }, { status: 403 });
   }
   const redis = getRedis();
-  const body = await request.json();
+  const body: PersistedState = await request.json();
   if (!redis) {
     return Response.json({ ok: false, error: 'No database connected. Add Upstash Redis in the Vercel Storage tab.' }, { status: 500 });
   }

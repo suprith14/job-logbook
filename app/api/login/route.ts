@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { checkCredentials, signSession, COOKIE_NAME } from '../../../lib/auth';
 
-export async function POST(request) {
+export async function POST(request: NextRequest) {
   const { username, password } = await request.json();
   const role = checkCredentials((username || '').trim(), password || '');
 

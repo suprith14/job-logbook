@@ -9,7 +9,7 @@ export const DEFAULT_RESUME = {
   linkedin: 'linkedin.com/in/yourprofile',
   website: 'github.com/yourusername',
   summary:
-    'Frontend developer with 5+ years building performant, accessible web applications using React and TypeScript. Experienced leading feature delivery end-to-end, from component architecture to production deployment, in fast-moving product teams.',
+    'Frontend developer with 4 years of experience building performant, accessible web applications using React and TypeScript. Experienced leading feature delivery end-to-end, from component architecture to production deployment, in fast-moving product teams.',
   skills: 'JavaScript, TypeScript, React, Next.js, Redux, HTML5, CSS3, REST APIs, GraphQL, Git, Jest, Webpack, Node.js, Agile/Scrum',
   experience: [
     {
@@ -17,7 +17,7 @@ export const DEFAULT_RESUME = {
       company: 'Company Name',
       role: 'Senior Frontend Developer',
       location: 'Bengaluru, India',
-      start: 'Jan 2022',
+      start: 'Jan 2024',
       end: 'Present',
       bullets:
         'Led migration of a legacy jQuery codebase to React, reducing page load time by 40%\nBuilt a reusable component library adopted across 6 product teams\nMentored 3 junior engineers through code review and pairing',
@@ -27,8 +27,8 @@ export const DEFAULT_RESUME = {
       company: 'Previous Company',
       role: 'Frontend Developer',
       location: 'Bengaluru, India',
-      start: 'Jun 2019',
-      end: 'Dec 2021',
+      start: 'Jun 2022',
+      end: 'Dec 2023',
       bullets:
         'Implemented responsive UI features for a consumer-facing web app used by 2M+ monthly users\nImproved test coverage from 45% to 85% by introducing Jest and React Testing Library\nCollaborated with design and backend teams to ship features on a two-week sprint cycle',
     },
@@ -38,8 +38,8 @@ export const DEFAULT_RESUME = {
       id: 'd1',
       school: 'Your University',
       degree: 'B.Tech in Computer Science',
-      start: '2015',
-      end: '2019',
+      start: '2014',
+      end: '2018',
       details: '',
     },
   ],
@@ -52,6 +52,102 @@ function splitLines(text) {
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
+}
+
+const ACTION_VERBS = [
+  'led', 'built', 'developed', 'implemented', 'designed', 'improved', 'reduced', 'increased', 'created',
+  'managed', 'launched', 'optimized', 'migrated', 'automated', 'mentored', 'collaborated', 'delivered',
+  'architected', 'owned', 'drove', 'spearheaded', 'established', 'streamlined', 'engineered', 'refactored',
+  'shipped', 'scaled', 'authored', 'introduced', 'resolved', 'accelerated', 'coordinated', 'executed',
+  'directed', 'initiated', 'transformed', 'enhanced', 'decreased', 'achieved', 'partnered', 'wrote', 'redesigned',
+];
+
+const UNSAFE_CHAR_RE = /[^\x00-\x7F–—‘’“”]/;
+
+function scoreResume(resume) {
+  const checks = [];
+  const allBullets = (resume.experience || []).flatMap((e) => splitLines(e.bullets));
+
+  const contactFilled =
+    !!resume.email && resume.email !== DEFAULT_RESUME.email && !!resume.phone && resume.phone !== DEFAULT_RESUME.phone;
+  checks.push({
+    label: 'Contact details filled in',
+    passed: contactFilled,
+    hint: 'Replace the placeholder email and phone with your real ones — ATS systems parse these as structured fields.',
+  });
+
+  const summaryWords = (resume.summary || '').trim().split(/\s+/).filter(Boolean).length;
+  checks.push({
+    label: 'Summary is a focused 15–60 words',
+    passed: summaryWords >= 15 && summaryWords <= 60,
+    hint: 'Aim for 2–3 sentences — long enough to include keywords, short enough that it gets read.',
+  });
+
+  const skillCount = (resume.skills || '').split(',').map((s) => s.trim()).filter(Boolean).length;
+  checks.push({
+    label: 'At least 6 skills listed',
+    passed: skillCount >= 6,
+    hint: 'List the specific tools and technologies from the job description — ATS keyword matching runs on this section most heavily.',
+  });
+
+  checks.push({
+    label: 'At least one work experience entry',
+    passed: (resume.experience || []).length > 0,
+    hint: 'Add at least one role — an empty experience section is an automatic reject in most ATS screens.',
+  });
+
+  const datesComplete = (resume.experience || []).every((e) => e.start.trim() && e.end.trim());
+  checks.push({
+    label: 'Every role has a start and end date',
+    passed: (resume.experience || []).length === 0 ? false : datesComplete,
+    hint: 'Missing dates are one of the most common reasons ATS parsers misfile work history into the wrong order.',
+  });
+
+  const verbCount = allBullets.filter((b) => {
+    const first = (b.split(/\s+/)[0] || '').toLowerCase().replace(/[^a-z]/g, '');
+    return ACTION_VERBS.includes(first);
+  }).length;
+  const verbRatio = allBullets.length ? verbCount / allBullets.length : 0;
+  checks.push({
+    label: 'Bullets start with an action verb',
+    passed: allBullets.length > 0 && verbRatio >= 0.7,
+    hint: 'Start each bullet with "Led", "Built", "Reduced", "Improved" etc. instead of "Responsible for" or "Worked on".',
+  });
+
+  const numberCount = allBullets.filter((b) => /\d/.test(b)).length;
+  const numberRatio = allBullets.length ? numberCount / allBullets.length : 0;
+  checks.push({
+    label: 'Bullets include a measurable number',
+    passed: allBullets.length > 0 && numberRatio >= 0.5,
+    hint: 'Add a %, a count, or a time saved wherever you can — "reduced load time by 40%" beats "improved performance".',
+  });
+
+  checks.push({
+    label: 'Bullet count is in a healthy range (4–15)',
+    passed: allBullets.length >= 4 && allBullets.length <= 15,
+    hint: allBullets.length < 4 ? 'Add more detail to your experience bullets.' : 'Trim to your strongest bullets — too many buries the important ones.',
+  });
+
+  const allText = [
+    resume.name, resume.title, resume.summary, resume.skills, resume.certifications,
+    ...(resume.experience || []).flatMap((e) => [e.company, e.role, e.location, e.bullets]),
+    ...(resume.education || []).flatMap((e) => [e.school, e.degree, e.details]),
+    ...(resume.projects || []).flatMap((p) => [p.name, p.description]),
+  ].join(' ');
+  checks.push({
+    label: 'No special characters or symbols that can break parsing',
+    passed: !UNSAFE_CHAR_RE.test(allText),
+    hint: 'Avoid emoji, bullet glyphs, or decorative symbols typed into the text fields — stick to plain characters and standard punctuation.',
+  });
+
+  const passedCount = checks.filter((c) => c.passed).length;
+  const score = Math.round((passedCount / checks.length) * 100);
+  let rating = 'Needs work';
+  if (score >= 90) rating = 'Excellent';
+  else if (score >= 75) rating = 'Good';
+  else if (score >= 55) rating = 'Fair';
+
+  return { score, rating, checks };
 }
 
 function buildResumeText(resume) {
@@ -119,6 +215,8 @@ function buildResumeText(resume) {
 }
 
 export default function ResumeBuilder({ resume, setResume, isAdmin, copyStatus, onCopy }) {
+  const ats = scoreResume(resume);
+
   function update(field, value) {
     setResume((prev) => ({ ...prev, [field]: value }));
   }
@@ -194,6 +292,27 @@ export default function ResumeBuilder({ resume, setResume, isAdmin, copyStatus, 
         Kept to a single column, standard headings and plain bullets on purpose — the layout most ATS parsers read
         correctly. Fill in the fields, then copy the text or print straight to PDF below.
       </p>
+
+      <div className={`ats-score-card ats-${ats.rating.toLowerCase().replace(/\s+/g, '-')}`}>
+        <div className="ats-score-top">
+          <div className="ats-score-number">{ats.score}<span>/100</span></div>
+          <div>
+            <div className="ats-score-rating">{ats.rating} ATS compatibility</div>
+            <div className="ats-score-sub">Based on {ats.checks.length} structural and content checks below.</div>
+          </div>
+        </div>
+        <ul className="ats-checklist">
+          {ats.checks.map((c) => (
+            <li key={c.label} className={c.passed ? 'pass' : 'fail'}>
+              <span className="ats-check-mark">{c.passed ? '✓' : '✗'}</span>
+              <div>
+                <div className="ats-check-label">{c.label}</div>
+                {!c.passed && <div className="ats-check-hint">{c.hint}</div>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {isAdmin && (
         <div className="resume-editor">

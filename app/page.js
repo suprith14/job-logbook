@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CompGuide from './CompGuide';
+import ResumeBuilder, { DEFAULT_RESUME } from './ResumeBuilder';
 
 const DAILY_GOAL = 15;
 
@@ -156,6 +157,8 @@ export default function Home() {
   const [editingSnippetId, setEditingSnippetId] = useState(null);
   const [editSnippetBuffer, setEditSnippetBuffer] = useState({ title: '', text: '' });
   const [copiedSnippetId, setCopiedSnippetId] = useState(null);
+  const [resume, setResume] = useState(DEFAULT_RESUME);
+  const [resumeCopyStatus, setResumeCopyStatus] = useState('idle');
 
   const isAdmin = role === 'admin';
 
@@ -189,6 +192,7 @@ export default function Home() {
         setCompanyOverrides(data.companyOverrides || {});
         setHrQuestions(data.hrQuestions || []);
         setSnippets(data.snippets || []);
+        setResume(data.resume || DEFAULT_RESUME);
         if (data.settings && data.settings.defaultRole) setDefaultRole(data.settings.defaultRole);
         setLoaded(true);
       })
@@ -203,7 +207,7 @@ export default function Home() {
       fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applications, customCompanies, companyOverrides, hrQuestions, snippets, settings: { defaultRole } }),
+        body: JSON.stringify({ applications, customCompanies, companyOverrides, hrQuestions, snippets, resume, settings: { defaultRole } }),
       })
         .then((res) => res.json())
         .then((res) => {
@@ -216,7 +220,7 @@ export default function Home() {
         });
     }, 400);
     return () => clearTimeout(t);
-  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, defaultRole, loaded, isAdmin]);
+  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, resume, defaultRole, loaded, isAdmin]);
 
   const allCompanies = useMemo(() => {
     const defaults = DEFAULT_COMPANIES.map((c) =>
@@ -528,6 +532,16 @@ export default function Home() {
     return snippets.filter((sn) => sn.title.toLowerCase().includes(s) || sn.text.toLowerCase().includes(s));
   }, [snippets, snippetSearch]);
 
+  async function copyResumeText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (err) {
+      return;
+    }
+    setResumeCopyStatus('copied');
+    setTimeout(() => setResumeCopyStatus('idle'), 1500);
+  }
+
   const rungs = Array.from({ length: DAILY_GOAL }, (_, i) => i + 1 <= todayCount);
 
   if (!authChecked) {
@@ -609,6 +623,9 @@ export default function Home() {
         </button>
         <button className={`tab${activeTab === 'comp' ? ' active' : ''}`} onClick={() => setActiveTab('comp')}>
           Comp Guide
+        </button>
+        <button className={`tab${activeTab === 'resume' ? ' active' : ''}`} onClick={() => setActiveTab('resume')}>
+          Resume
         </button>
       </div>
 
@@ -1118,6 +1135,16 @@ export default function Home() {
       )}
 
       {activeTab === 'comp' && <CompGuide />}
+
+      {activeTab === 'resume' && (
+        <ResumeBuilder
+          resume={resume}
+          setResume={setResume}
+          isAdmin={isAdmin}
+          copyStatus={resumeCopyStatus}
+          onCopy={copyResumeText}
+        />
+      )}
     </div>
   );
 }

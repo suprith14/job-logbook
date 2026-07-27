@@ -792,6 +792,92 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   color:var(--amber);
 }
 
+.resume-editor{margin-bottom:26px;}
+.resume-field-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:8px;
+  margin-bottom:8px;
+}
+.resume-entries{display:flex;flex-direction:column;gap:12px;margin-bottom:10px;}
+.resume-entry{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.resume-remove{
+  align-self:flex-start;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+}
+.resume-add-btn{align-self:flex-start;}
+
+.resume-actions{display:flex;gap:10px;margin:0 0 20px;flex-wrap:wrap;}
+
+.resume-preview{
+  background:#ffffff;
+  color:#1a1a1a;
+  font-family:Arial,Helvetica,sans-serif;
+  border-radius:10px;
+  padding:36px 42px;
+  max-width:760px;
+}
+.r-name{font-size:22px;font-weight:700;text-align:center;}
+.r-title{font-size:14px;text-align:center;margin-top:2px;color:#333;}
+.r-contact{font-size:11.5px;text-align:center;margin-top:6px;color:#333;}
+.r-section{margin-top:18px;}
+.r-heading{
+  font-size:12.5px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  border-bottom:1px solid #999;
+  padding-bottom:3px;
+  margin-bottom:8px;
+}
+.r-summary{font-size:12.5px;line-height:1.5;margin:0;}
+.r-skills{font-size:12.5px;line-height:1.5;margin:0;}
+.r-entry{margin-bottom:12px;}
+.r-entry:last-child{margin-bottom:0;}
+.r-entry-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:10px;
+  font-size:13px;
+}
+.r-entry-title{font-weight:700;}
+.r-entry-dates{font-size:11.5px;color:#333;white-space:nowrap;}
+.r-entry-sub{font-size:11.5px;color:#333;margin-top:1px;}
+.r-bullets{
+  margin:6px 0 0;
+  padding-left:18px;
+  font-size:12.5px;
+  line-height:1.5;
+}
+.r-bullets li{margin-bottom:3px;}
+
+@media print{
+  body *{visibility:hidden;}
+  #resume-print-area, #resume-print-area *{visibility:visible;}
+  #resume-print-area{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    max-width:100%;
+    padding:0;
+    border-radius:0;
+  }
+  .no-print{display:none !important;}
+}
+
 @media (max-width:640px){
   h1{font-size:26px;}
   .ladder-card{min-width:0;width:100%;}

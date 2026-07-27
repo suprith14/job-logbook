@@ -67,16 +67,16 @@ This is what makes your data show up on both your phone and your laptop.
 
 ## 5. (Optional) Enable "Find new companies"
 
-The app has a button on the Career Links tab that asks Claude to search the
-web and suggest new companies with direct career links, which you then
-review and pick which ones to keep. This step is optional — everything else
-works without it.
+The app has a button on the Career Links tab that searches the web and
+suggests new companies with direct career links, which you then review and
+pick which ones to keep. This step is optional — everything else works
+without it. It runs on Google's Gemini API, which has a free tier — no
+payment needed for normal personal use.
 
-1. Get an API key from https://console.anthropic.com/ (Settings → API Keys).
-   This is a pay-as-you-go key; each click of the button costs a small
-   amount (a few cents) for the web search + response.
+1. Get a free API key at https://aistudio.google.com/apikey (sign in with
+   any Google account, no billing setup required for the free tier).
 2. In your Vercel project, go to **Settings → Environment Variables**, add:
-   - Name: `ANTHROPIC_API_KEY`
+   - Name: `GEMINI_API_KEY`
    - Value: the key you just copied
 3. Go to **Deployments** → latest deployment → **Redeploy**.
 4. The button will now work. Suggestions are shown for you to review —

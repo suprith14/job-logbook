@@ -703,7 +703,7 @@ export default function Home() {
               <button className="discover-btn" onClick={findNewCompanies} disabled={discovering}>
                 {discovering ? 'Searching…' : '✦ Find new companies'}
               </button>
-              <span className="discover-hint">Uses Claude with web search — small cost per click.</span>
+              <span className="discover-hint">Free — suggested from Gemini's knowledge, not a live search. Verify each link before adding.</span>
             </div>
           )}
 

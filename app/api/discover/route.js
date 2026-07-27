@@ -10,10 +10,13 @@ export async function POST(request) {
     return Response.json({ error: 'View-only access cannot run searches.' }, { status: 403 });
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return Response.json(
-      { error: 'ANTHROPIC_API_KEY is not set. Add it in Vercel → Settings → Environment Variables, then redeploy.' },
+      {
+        error:
+          'GEMINI_API_KEY is not set. Get a free key at aistudio.google.com/apikey, add it in Vercel → Settings → Environment Variables, then redeploy.',
+      },
       { status: 500 }
     );
   }
@@ -26,7 +29,7 @@ export async function POST(request) {
     // no body — fine, proceed with empty exclusion list
   }
 
-  const prompt = `Find 8 companies (Bangalore-based or remote-friendly, global or Indian) that currently have open frontend or senior frontend developer roles, and give me the DIRECT link to their own careers page — never a job board or aggregator (no LinkedIn, Naukri, Indeed, Glassdoor, Wellfound, foundit, Instahyre, etc).
+  const prompt = `List 8 companies (Bangalore-based or remote-friendly, global or Indian) known for hiring frontend or senior frontend developers, and give the DIRECT link to their own careers page — never a job board or aggregator (no LinkedIn, Naukri, Indeed, Glassdoor, Wellfound, foundit, Instahyre, etc). Use your own knowledge of these companies' official career sites — do not invent a URL if you are not confident of it.
 
 Do not repeat any of these companies, they are already in my list: ${existingNames.join(', ') || '(none yet)'}.
 
@@ -36,30 +39,26 @@ Respond with ONLY a JSON array, no other text, no markdown code fences, in exact
 Pick "category" from: "Bangalore product", "Global tech", "Banking / fintech", "IT services", "Remote-first" — or a new short category (2-3 words) if none of those fit.`;
 
   try {
-    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }],
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-      }),
-    });
+    const apiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
 
     if (!apiRes.ok) {
       const errText = await apiRes.text();
-      return Response.json({ error: `Anthropic API error: ${errText}` }, { status: 500 });
+      return Response.json({ error: `Gemini API error: ${errText}` }, { status: 500 });
     }
 
     const data = await apiRes.json();
-    const textBlocks = (data.content || [])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
+    const textBlocks = (data.candidates?.[0]?.content?.parts || [])
+      .filter((p) => p.text)
+      .map((p) => p.text)
       .join('\n');
 
     const cleaned = textBlocks.replace(/```json|```/g, '').trim();

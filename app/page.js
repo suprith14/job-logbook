@@ -540,6 +540,7 @@ export default function Home() {
           <div className="session-bar">
             <span className={`role-badge ${role}`}>{role === 'admin' ? 'Admin' : 'View only'}</span>
             <span className="total-badge">{totalCount} total applied</span>
+            <span className="total-badge">{allCompanies.length} companies listed</span>
             <button className="logout-link" onClick={handleLogout}>Sign out</button>
           </div>
           {stageCounts.length > 0 && (

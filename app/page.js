@@ -127,6 +127,7 @@ export default function Home() {
   const [customCompanies, setCustomCompanies] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [syncStatus, setSyncStatus] = useState('idle'); // idle | saving | saved | error
+  const [syncError, setSyncError] = useState('');
   const [activeTab, setActiveTab] = useState('directory');
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
@@ -191,8 +192,14 @@ export default function Home() {
         body: JSON.stringify({ applications, customCompanies, companyOverrides, settings: { defaultRole } }),
       })
         .then((res) => res.json())
-        .then((res) => setSyncStatus(res.ok ? 'saved' : 'error'))
-        .catch(() => setSyncStatus('error'));
+        .then((res) => {
+          setSyncStatus(res.ok ? 'saved' : 'error');
+          setSyncError(res.ok ? '' : res.error || 'Unknown error');
+        })
+        .catch((err) => {
+          setSyncStatus('error');
+          setSyncError(String(err));
+        });
     }, 400);
     return () => clearTimeout(t);
   }, [applications, customCompanies, companyOverrides, defaultRole, loaded, isAdmin]);
@@ -440,7 +447,7 @@ export default function Home() {
           <div className={`sync-note ${syncStatus === 'saving' ? 'saving' : ''} ${syncStatus === 'error' ? 'error' : ''}`}>
             {syncStatus === 'saving' && 'Syncing…'}
             {syncStatus === 'saved' && 'Synced across your devices'}
-            {syncStatus === 'error' && 'Not synced — check database connection'}
+            {syncStatus === 'error' && `Not synced — ${syncError || 'check database connection'}`}
             {syncStatus === 'idle' && loaded && 'Ready'}
           </div>
           {isAdmin && todayCount > 0 && (

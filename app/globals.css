@@ -716,6 +716,30 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 .qa-right{border-left-color:var(--teal);background:rgba(63,167,150,0.08);}
 .qa-right .qa-tag{color:var(--teal);}
 
+.snippet-text{
+  font-size:13.5px;
+  line-height:1.55;
+  color:var(--text-muted);
+  white-space:pre-wrap;
+  padding:8px 10px;
+  border-radius:8px;
+  background:var(--surface-raised);
+}
+.copy-btn{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  background:transparent;
+  border:1px solid var(--amber-dim);
+  color:var(--amber);
+  padding:4px 9px;
+  border-radius:6px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.copy-btn:hover{background:var(--amber);color:var(--ink);}
+
 @media (max-width:640px){
   h1{font-size:26px;}
   .ladder-card{min-width:0;width:100%;}

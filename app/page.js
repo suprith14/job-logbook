@@ -149,6 +149,12 @@ export default function Home() {
   const [hrSearch, setHrSearch] = useState('');
   const [editingQAId, setEditingQAId] = useState(null);
   const [editQABuffer, setEditQABuffer] = useState({ question: '', wrongAnswer: '', rightAnswer: '' });
+  const [snippets, setSnippets] = useState([]);
+  const [newSnippet, setNewSnippet] = useState({ title: '', text: '' });
+  const [snippetSearch, setSnippetSearch] = useState('');
+  const [editingSnippetId, setEditingSnippetId] = useState(null);
+  const [editSnippetBuffer, setEditSnippetBuffer] = useState({ title: '', text: '' });
+  const [copiedSnippetId, setCopiedSnippetId] = useState(null);
 
   const isAdmin = role === 'admin';
 
@@ -181,6 +187,7 @@ export default function Home() {
         setCustomCompanies(data.customCompanies || []);
         setCompanyOverrides(data.companyOverrides || {});
         setHrQuestions(data.hrQuestions || []);
+        setSnippets(data.snippets || []);
         if (data.settings && data.settings.defaultRole) setDefaultRole(data.settings.defaultRole);
         setLoaded(true);
       })
@@ -195,7 +202,7 @@ export default function Home() {
       fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applications, customCompanies, companyOverrides, hrQuestions, settings: { defaultRole } }),
+        body: JSON.stringify({ applications, customCompanies, companyOverrides, hrQuestions, snippets, settings: { defaultRole } }),
       })
         .then((res) => res.json())
         .then((res) => {
@@ -208,7 +215,7 @@ export default function Home() {
         });
     }, 400);
     return () => clearTimeout(t);
-  }, [applications, customCompanies, companyOverrides, hrQuestions, defaultRole, loaded, isAdmin]);
+  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, defaultRole, loaded, isAdmin]);
 
   const allCompanies = useMemo(() => {
     const defaults = DEFAULT_COMPANIES.map((c) =>
@@ -472,6 +479,54 @@ export default function Home() {
     return hrQuestions.filter((q) => q.question.toLowerCase().includes(s));
   }, [hrQuestions, hrSearch]);
 
+  function addSnippet() {
+    if (!isAdmin) return;
+    const title = newSnippet.title.trim();
+    const text = newSnippet.text.trim();
+    if (!title || !text) return;
+    setSnippets((prev) => [{ id: `s${Date.now()}${Math.random()}`, title, text }, ...prev]);
+    setNewSnippet({ title: '', text: '' });
+  }
+
+  function deleteSnippet(id) {
+    if (!isAdmin) return;
+    setSnippets((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  function startEditSnippet(snippet) {
+    if (!isAdmin) return;
+    setEditingSnippetId(snippet.id);
+    setEditSnippetBuffer({ title: snippet.title, text: snippet.text });
+  }
+
+  function saveEditSnippet(id) {
+    const title = editSnippetBuffer.title.trim();
+    const text = editSnippetBuffer.text.trim();
+    if (!title || !text) return;
+    setSnippets((prev) => prev.map((s) => (s.id === id ? { ...s, title, text } : s)));
+    setEditingSnippetId(null);
+  }
+
+  function cancelEditSnippet() {
+    setEditingSnippetId(null);
+  }
+
+  async function copySnippet(snippet) {
+    try {
+      await navigator.clipboard.writeText(snippet.text);
+    } catch (err) {
+      return;
+    }
+    setCopiedSnippetId(snippet.id);
+    setTimeout(() => setCopiedSnippetId((cur) => (cur === snippet.id ? null : cur)), 1500);
+  }
+
+  const filteredSnippets = useMemo(() => {
+    const s = snippetSearch.trim().toLowerCase();
+    if (!s) return snippets;
+    return snippets.filter((sn) => sn.title.toLowerCase().includes(s) || sn.text.toLowerCase().includes(s));
+  }, [snippets, snippetSearch]);
+
   const rungs = Array.from({ length: DAILY_GOAL }, (_, i) => i + 1 <= todayCount);
 
   if (!authChecked) {
@@ -547,6 +602,9 @@ export default function Home() {
         </button>
         <button className={`tab${activeTab === 'hr' ? ' active' : ''}`} onClick={() => setActiveTab('hr')}>
           HR
+        </button>
+        <button className={`tab${activeTab === 'snippets' ? ' active' : ''}`} onClick={() => setActiveTab('snippets')}>
+          Snippets
         </button>
       </div>
 
@@ -956,6 +1014,98 @@ export default function Home() {
                     <span className="qa-tag">✓ Say this</span>
                     <span>{qa.rightAnswer}</span>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'snippets' && (
+        <div className="panel active">
+          <div className="dir-controls">
+            <input
+              type="text"
+              placeholder="Search your snippets…"
+              value={snippetSearch}
+              onChange={(e) => setSnippetSearch(e.target.value)}
+            />
+          </div>
+
+          {isAdmin && (
+            <div className="add-form qa-form">
+              <input
+                type="text"
+                placeholder="Title (e.g. Why this role, Notice period, Portfolio link)…"
+                value={newSnippet.title}
+                onChange={(e) => setNewSnippet({ ...newSnippet, title: e.target.value })}
+              />
+              <textarea
+                className="qa-textarea"
+                rows={3}
+                placeholder="Text to paste into applications…"
+                value={newSnippet.text}
+                onChange={(e) => setNewSnippet({ ...newSnippet, text: e.target.value })}
+              />
+              <button onClick={addSnippet}>Add snippet</button>
+            </div>
+          )}
+
+          {filteredSnippets.length === 0 && (
+            <div className="empty-state">
+              {snippets.length === 0
+                ? 'No snippets yet — add one above (e.g. a standard answer or your portfolio link) to copy into applications.'
+                : 'No snippets match that search.'}
+            </div>
+          )}
+
+          <div className="qa-list">
+            {filteredSnippets.map((snippet) => {
+              const isEditing = editingSnippetId === snippet.id;
+              if (isEditing) {
+                return (
+                  <div className="qa-card editing" key={snippet.id}>
+                    <input
+                      type="text"
+                      value={editSnippetBuffer.title}
+                      onChange={(e) => setEditSnippetBuffer({ ...editSnippetBuffer, title: e.target.value })}
+                      placeholder="Title"
+                    />
+                    <textarea
+                      className="qa-textarea"
+                      rows={3}
+                      value={editSnippetBuffer.text}
+                      onChange={(e) => setEditSnippetBuffer({ ...editSnippetBuffer, text: e.target.value })}
+                      placeholder="Text"
+                    />
+                    <div className="edit-actions">
+                      <button onClick={() => saveEditSnippet(snippet.id)}>Save</button>
+                      <button className="ghost-btn" onClick={cancelEditSnippet}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="qa-card" key={snippet.id}>
+                  <div className="qa-question-row">
+                    <div className="qa-question">{snippet.title}</div>
+                    <div className="qa-actions">
+                      <button className="copy-btn" onClick={() => copySnippet(snippet)}>
+                        {copiedSnippetId === snippet.id ? '✓ Copied' : 'Copy'}
+                      </button>
+                      {isAdmin && (
+                        <>
+                          <button className="edit-icon" onClick={() => startEditSnippet(snippet)} title="Edit">
+                            ✎
+                          </button>
+                          <button className="del-btn" onClick={() => deleteSnippet(snippet.id)} title="Delete">
+                            ✕
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="snippet-text">{snippet.text}</div>
                 </div>
               );
             })}

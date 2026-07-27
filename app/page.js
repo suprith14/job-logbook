@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import CompGuide from './CompGuide';
 
 const DAILY_GOAL = 15;
 
@@ -606,6 +607,9 @@ export default function Home() {
         <button className={`tab${activeTab === 'snippets' ? ' active' : ''}`} onClick={() => setActiveTab('snippets')}>
           Snippets
         </button>
+        <button className={`tab${activeTab === 'comp' ? ' active' : ''}`} onClick={() => setActiveTab('comp')}>
+          Comp Guide
+        </button>
       </div>
 
       {activeTab === 'directory' && (
@@ -1112,6 +1116,8 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {activeTab === 'comp' && <CompGuide />}
     </div>
   );
 }

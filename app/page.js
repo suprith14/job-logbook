@@ -247,8 +247,16 @@ export default function Home() {
 
   function quickApply(company) {
     if (!isAdmin) return;
+    if (isAppliedToday(company.name)) {
+      const t = todayStr();
+      setApplications((prev) => {
+        const idx = prev.findIndex((a) => a.company === company.name && a.appliedDate === t);
+        if (idx === -1) return prev;
+        return prev.filter((_, i) => i !== idx);
+      });
+      return;
+    }
     window.open(company.link, '_blank', 'noopener');
-    if (isAppliedToday(company.name)) return;
     setApplications((prev) => [
       {
         id: Date.now() + Math.random(),
@@ -677,7 +685,11 @@ export default function Home() {
                           Open career page ↗
                         </a>
                         {isAdmin && (
-                          <button className={`apply-btn${done ? ' done' : ''}`} onClick={() => quickApply(c)}>
+                          <button
+                            className={`apply-btn${done ? ' done' : ''}`}
+                            onClick={() => quickApply(c)}
+                            title={done ? 'Click to undo — not fully applied' : 'Opens the career page and logs it as applied'}
+                          >
                             {done ? '✓ Applied today' : 'Apply →'}
                           </button>
                         )}

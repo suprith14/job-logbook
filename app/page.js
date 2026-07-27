@@ -144,6 +144,11 @@ export default function Home() {
   const [bulkText, setBulkText] = useState('');
   const [bulkResult, setBulkResult] = useState('');
   const [showBulk, setShowBulk] = useState(false);
+  const [hrQuestions, setHrQuestions] = useState([]);
+  const [newQA, setNewQA] = useState({ question: '', wrongAnswer: '', rightAnswer: '' });
+  const [hrSearch, setHrSearch] = useState('');
+  const [editingQAId, setEditingQAId] = useState(null);
+  const [editQABuffer, setEditQABuffer] = useState({ question: '', wrongAnswer: '', rightAnswer: '' });
 
   const isAdmin = role === 'admin';
 
@@ -175,6 +180,7 @@ export default function Home() {
         setApplications(data.applications || []);
         setCustomCompanies(data.customCompanies || []);
         setCompanyOverrides(data.companyOverrides || {});
+        setHrQuestions(data.hrQuestions || []);
         if (data.settings && data.settings.defaultRole) setDefaultRole(data.settings.defaultRole);
         setLoaded(true);
       })
@@ -189,7 +195,7 @@ export default function Home() {
       fetch('/api/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ applications, customCompanies, companyOverrides, settings: { defaultRole } }),
+        body: JSON.stringify({ applications, customCompanies, companyOverrides, hrQuestions, settings: { defaultRole } }),
       })
         .then((res) => res.json())
         .then((res) => {
@@ -202,7 +208,7 @@ export default function Home() {
         });
     }, 400);
     return () => clearTimeout(t);
-  }, [applications, customCompanies, companyOverrides, defaultRole, loaded, isAdmin]);
+  }, [applications, customCompanies, companyOverrides, hrQuestions, defaultRole, loaded, isAdmin]);
 
   const allCompanies = useMemo(() => {
     const defaults = DEFAULT_COMPANIES.map((c) =>
@@ -215,6 +221,16 @@ export default function Home() {
     () => applications.filter((a) => a.appliedDate === todayStr()).length,
     [applications]
   );
+
+  const totalCount = applications.length;
+
+  const stageCounts = useMemo(() => {
+    const counts = {};
+    applications.forEach((a) => {
+      counts[a.status] = (counts[a.status] || 0) + 1;
+    });
+    return STATUSES.filter((s) => counts[s]).map((s) => ({ status: s, count: counts[s] }));
+  }, [applications]);
 
   const categories = useMemo(
     () => [...new Set(allCompanies.map((c) => c.category))],
@@ -408,6 +424,54 @@ export default function Home() {
     setSelectedSuggestions(new Set());
   }
 
+  function addQA() {
+    if (!isAdmin) return;
+    const question = newQA.question.trim();
+    const wrongAnswer = newQA.wrongAnswer.trim();
+    const rightAnswer = newQA.rightAnswer.trim();
+    if (!question || !rightAnswer) return;
+    setHrQuestions((prev) => [
+      { id: `q${Date.now()}${Math.random()}`, question, wrongAnswer, rightAnswer },
+      ...prev,
+    ]);
+    setNewQA({ question: '', wrongAnswer: '', rightAnswer: '' });
+  }
+
+  function deleteQA(id) {
+    if (!isAdmin) return;
+    setHrQuestions((prev) => prev.filter((q) => q.id !== id));
+  }
+
+  function startEditQA(qa) {
+    if (!isAdmin) return;
+    setEditingQAId(qa.id);
+    setEditQABuffer({ question: qa.question, wrongAnswer: qa.wrongAnswer, rightAnswer: qa.rightAnswer });
+  }
+
+  function saveEditQA(id) {
+    const question = editQABuffer.question.trim();
+    const rightAnswer = editQABuffer.rightAnswer.trim();
+    if (!question || !rightAnswer) return;
+    setHrQuestions((prev) =>
+      prev.map((q) =>
+        q.id === id
+          ? { ...q, question, wrongAnswer: editQABuffer.wrongAnswer.trim(), rightAnswer }
+          : q
+      )
+    );
+    setEditingQAId(null);
+  }
+
+  function cancelEditQA() {
+    setEditingQAId(null);
+  }
+
+  const filteredQA = useMemo(() => {
+    const s = hrSearch.trim().toLowerCase();
+    if (!s) return hrQuestions;
+    return hrQuestions.filter((q) => q.question.toLowerCase().includes(s));
+  }, [hrQuestions, hrSearch]);
+
   const rungs = Array.from({ length: DAILY_GOAL }, (_, i) => i + 1 <= todayCount);
 
   if (!authChecked) {
@@ -429,8 +493,18 @@ export default function Home() {
           </div>
           <div className="session-bar">
             <span className={`role-badge ${role}`}>{role === 'admin' ? 'Admin' : 'View only'}</span>
+            <span className="total-badge">{totalCount} total applied</span>
             <button className="logout-link" onClick={handleLogout}>Sign out</button>
           </div>
+          {stageCounts.length > 0 && (
+            <div className="stage-counts">
+              {stageCounts.map(({ status, count }) => (
+                <span key={status} className={`stage-count-pill stage-${slugStatus(status)}`}>
+                  {status} <b>{count}</b>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="ladder-card">
           <div className="ladder-top">
@@ -470,6 +544,9 @@ export default function Home() {
         </button>
         <button className={`tab${activeTab === 'log' ? ' active' : ''}`} onClick={() => setActiveTab('log')}>
           Application Log
+        </button>
+        <button className={`tab${activeTab === 'hr' ? ' active' : ''}`} onClick={() => setActiveTab('hr')}>
+          HR
         </button>
       </div>
 
@@ -771,6 +848,118 @@ export default function Home() {
               </tbody>
             </table>
           )}
+        </div>
+      )}
+
+      {activeTab === 'hr' && (
+        <div className="panel active">
+          <div className="dir-controls">
+            <input
+              type="text"
+              placeholder="Search your questions…"
+              value={hrSearch}
+              onChange={(e) => setHrSearch(e.target.value)}
+            />
+          </div>
+
+          {isAdmin && (
+            <div className="add-form qa-form">
+              <textarea
+                className="qa-textarea"
+                rows={2}
+                placeholder="Question HR might ask…"
+                value={newQA.question}
+                onChange={(e) => setNewQA({ ...newQA, question: e.target.value })}
+              />
+              <textarea
+                className="qa-textarea"
+                rows={2}
+                placeholder="Wrong answer (what to avoid saying)…"
+                value={newQA.wrongAnswer}
+                onChange={(e) => setNewQA({ ...newQA, wrongAnswer: e.target.value })}
+              />
+              <textarea
+                className="qa-textarea"
+                rows={2}
+                placeholder="Right answer (what to actually say)…"
+                value={newQA.rightAnswer}
+                onChange={(e) => setNewQA({ ...newQA, rightAnswer: e.target.value })}
+              />
+              <button onClick={addQA}>Add question</button>
+            </div>
+          )}
+
+          {filteredQA.length === 0 && (
+            <div className="empty-state">
+              {hrQuestions.length === 0
+                ? 'No questions yet — add one above to start building your revision list.'
+                : 'No questions match that search.'}
+            </div>
+          )}
+
+          <div className="qa-list">
+            {filteredQA.map((qa) => {
+              const isEditing = editingQAId === qa.id;
+              if (isEditing) {
+                return (
+                  <div className="qa-card editing" key={qa.id}>
+                    <textarea
+                      className="qa-textarea"
+                      rows={2}
+                      value={editQABuffer.question}
+                      onChange={(e) => setEditQABuffer({ ...editQABuffer, question: e.target.value })}
+                      placeholder="Question"
+                    />
+                    <textarea
+                      className="qa-textarea"
+                      rows={2}
+                      value={editQABuffer.wrongAnswer}
+                      onChange={(e) => setEditQABuffer({ ...editQABuffer, wrongAnswer: e.target.value })}
+                      placeholder="Wrong answer"
+                    />
+                    <textarea
+                      className="qa-textarea"
+                      rows={2}
+                      value={editQABuffer.rightAnswer}
+                      onChange={(e) => setEditQABuffer({ ...editQABuffer, rightAnswer: e.target.value })}
+                      placeholder="Right answer"
+                    />
+                    <div className="edit-actions">
+                      <button onClick={() => saveEditQA(qa.id)}>Save</button>
+                      <button className="ghost-btn" onClick={cancelEditQA}>Cancel</button>
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <div className="qa-card" key={qa.id}>
+                  <div className="qa-question-row">
+                    <div className="qa-question">{qa.question}</div>
+                    {isAdmin && (
+                      <div className="qa-actions">
+                        <button className="edit-icon" onClick={() => startEditQA(qa)} title="Edit">
+                          ✎
+                        </button>
+                        <button className="del-btn" onClick={() => deleteQA(qa.id)} title="Delete">
+                          ✕
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {qa.wrongAnswer && (
+                    <div className="qa-answer qa-wrong">
+                      <span className="qa-tag">✗ Avoid</span>
+                      <span>{qa.wrongAnswer}</span>
+                    </div>
+                  )}
+                  <div className="qa-answer qa-right">
+                    <span className="qa-tag">✓ Say this</span>
+                    <span>{qa.rightAnswer}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

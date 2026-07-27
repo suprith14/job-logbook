@@ -98,6 +98,13 @@ body{
 }
 .role-badge.admin{color:var(--amber);border-color:var(--amber-dim);}
 .role-badge.viewer{color:var(--text-muted);}
+.total-badge{
+  padding:2px 8px;
+  border-radius:20px;
+  border:1px solid var(--line);
+  color:var(--text-muted);
+  letter-spacing:0.02em;
+}
 .logout-link{
   color:var(--text-faint);
   cursor:pointer;
@@ -603,6 +610,23 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 .status-rejected,.stage-rejected,
 .status-ghosted-no-response,.stage-ghosted-no-response{color:var(--rose);}
 
+.stage-counts{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:10px;
+}
+.stage-count-pill{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.03em;
+  padding:2px 8px;
+  border-radius:20px;
+  border:1px solid var(--line);
+}
+.stage-count-pill b{font-weight:600;margin-left:2px;}
+
 .stage-row{margin-top:-3px;}
 .stage-badge{
   font-family:'IBM Plex Mono',monospace;
@@ -632,6 +656,65 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   border-radius:10px;
 }
 .date-pill{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-muted);}
+
+.qa-form{flex-direction:column;align-items:stretch;}
+.qa-textarea{
+  width:100%;
+  font-family:'Inter',sans-serif;
+  font-size:13.5px;
+  padding:9px 11px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:var(--ink);
+  color:var(--text);
+  resize:vertical;
+}
+.qa-textarea:focus{border-color:var(--amber-dim);background:var(--surface-raised);}
+.qa-form button{align-self:flex-start;}
+
+.qa-list{display:flex;flex-direction:column;gap:12px;}
+.qa-card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.qa-card.editing{
+  gap:8px;
+  border-color:var(--amber-dim);
+}
+.qa-question-row{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.qa-question{font-weight:600;font-size:14.5px;line-height:1.45;}
+.qa-actions{display:flex;gap:4px;flex-shrink:0;}
+.qa-answer{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:13.5px;
+  line-height:1.5;
+  padding:8px 10px;
+  border-radius:8px;
+  border-left:3px solid var(--line);
+}
+.qa-tag{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  font-weight:600;
+}
+.qa-wrong{border-left-color:var(--rose);background:rgba(201,106,94,0.08);}
+.qa-wrong .qa-tag{color:var(--rose);}
+.qa-right{border-left-color:var(--teal);background:rgba(63,167,150,0.08);}
+.qa-right .qa-tag{color:var(--teal);}
 
 @media (max-width:640px){
   h1{font-size:26px;}

@@ -1,9 +1,17 @@
 'use client';
 
 import { Dispatch, SetStateAction, useState, useMemo } from 'react';
+import CodeBlock from '../components/CodeBlock';
 import type { Difficulty, TechRefEntry } from '../types';
 
 export const DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard'];
+
+// Picks a Prism language so code blocks get relevant syntax highlighting per category.
+function languageForCategory(category: string): string {
+  if (category === 'TypeScript') return 'typescript';
+  if (category === 'React' || category === 'Next.js') return 'jsx';
+  return 'javascript';
+}
 
 // Add new topic areas here as they come up — the rest of the screen (filter, add-form,
 // starter-pack loader) picks up new categories automatically.
@@ -624,7 +632,7 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                         <span className={`difficulty-tag difficulty-${suggestDifficulty.toLowerCase()}`}>{suggestDifficulty}</span>
                         <div className="qa-question">{c.topic}</div>
                         <p className="tech-explanation">{c.explanation}</p>
-                        {c.code && <pre className="tech-code">{c.code}</pre>}
+                        {c.code && <CodeBlock code={c.code} language={languageForCategory(category)} />}
                       </div>
                     </label>
                   ))}
@@ -754,7 +762,7 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                         )}
                       </div>
                       <p className="tech-explanation">{entry.explanation}</p>
-                      {entry.code && <pre className="tech-code">{entry.code}</pre>}
+                      {entry.code && <CodeBlock code={entry.code} language={languageForCategory(entry.category)} />}
                     </div>
                   );
                 })}

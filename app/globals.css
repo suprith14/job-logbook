@@ -714,19 +714,50 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   color:var(--text-muted);
   margin:0;
 }
-.tech-code{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:12.5px;
-  line-height:1.55;
+.code-block{position:relative;margin:4px 0 0;}
+.code-block pre{
+  margin:0;
   background:var(--ink);
   border:1px solid var(--line);
   border-radius:8px;
-  padding:10px 12px;
-  margin:0;
+  padding:14px 16px;
   overflow-x:auto;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px;
+  line-height:1.6;
   white-space:pre;
-  color:var(--teal);
 }
+.code-block code{background:none;font-family:inherit;color:var(--text);text-shadow:none;}
+.code-copy-btn{
+  position:absolute;
+  top:8px;
+  right:8px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  background:var(--surface-raised);
+  border:1px solid var(--line);
+  color:var(--text-muted);
+  padding:3px 8px;
+  border-radius:6px;
+  cursor:pointer;
+  opacity:0;
+  transition:opacity 0.15s;
+}
+.code-block:hover .code-copy-btn,
+.code-block:focus-within .code-copy-btn{opacity:1;}
+.code-copy-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+
+/* Prism token colors, mapped to the app's existing palette instead of a stock theme */
+.token.comment{color:var(--text-faint);font-style:italic;}
+.token.keyword{color:var(--amber);}
+.token.string,.token.template-string,.token.attr-value{color:var(--teal);}
+.token.number,.token.boolean,.token.tag{color:var(--rose);}
+.token.function{color:var(--text);font-weight:600;}
+.token.operator,.token.punctuation{color:var(--text-muted);}
+.token.class-name,.token.builtin,.token.maybe-class-name{color:var(--amber);}
+.token.parameter,.token.property{color:var(--text);}
 
 .qa-list{display:flex;flex-direction:column;gap:12px;}
 .qa-card{

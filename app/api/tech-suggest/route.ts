@@ -49,7 +49,7 @@ Do not repeat any of these, they are already covered: ${existingTopics.join(', '
 For each concept give:
 - "topic": a short concept name (a few words)
 - "explanation": 2–3 sentences, written the way a candidate would actually say it out loud in an interview — concrete, not textbook-generic, calibrated to the "${difficulty}" level above
-- "code": a short, correct, realistic code example if one is relevant to this concept, otherwise an empty string
+- "code": a short, correct, realistic code example if one is relevant to this concept, otherwise an empty string. If you include code, add a trailing "// comment" on every line that does something non-obvious, explaining what that line does and why — written for someone learning the concept, not just restating the syntax. Use \\n for line breaks within the string.
 
 Respond with ONLY a JSON array, no other text, no markdown code fences, in exactly this shape:
 [{"topic":"...","explanation":"...","code":"..."}]`;

@@ -24,21 +24,21 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     category: 'JavaScript',
     topic: 'Closures',
     explanation: 'A function retains access to its outer lexical scope even after the outer function has returned. This is how private state and factory functions work.',
-    code: 'function counter() {\n  let count = 0;\n  return () => ++count;\n}\nconst inc = counter();\ninc(); // 1\ninc(); // 2',
+    code: 'function counter() {\n  let count = 0;                 // private variable — not reachable from outside counter()\n  return () => ++count;         // this inner function "closes over" count and keeps it alive\n}\nconst inc = counter();          // counter() runs once and returns the inner function\ninc(); // 1                     // count is remembered between calls, not reset\ninc(); // 2                     // still the same count variable as before',
   },
   {
     id: 'seed-js2',
     category: 'JavaScript',
     topic: 'Event loop: microtasks vs macrotasks',
     explanation: 'The call stack runs synchronous code first. Microtasks (Promises, queueMicrotask) fully drain before the next macrotask (setTimeout, I/O, UI events) runs.',
-    code: "console.log('1');\nsetTimeout(() => console.log('2'), 0);\nPromise.resolve().then(() => console.log('3'));\nconsole.log('4');\n// Output: 1 4 3 2",
+    code: "console.log('1');                                // synchronous — runs immediately\nsetTimeout(() => console.log('2'), 0);           // macrotask — queued, waits for its turn\nPromise.resolve().then(() => console.log('3'));  // microtask — runs before any macrotask\nconsole.log('4');                                // still synchronous, runs before callbacks\n// Output order: 1 4 3 2 — sync code, then all microtasks, then macrotasks",
   },
   {
     id: 'seed-js3',
     category: 'JavaScript',
     topic: '"this" binding: arrow vs regular functions',
     explanation: 'Regular functions get "this" from the call site (how they were invoked). Arrow functions have no own "this" — they inherit it lexically from where they were defined.',
-    code: 'const obj = {\n  name: "A",\n  regular() { return this.name; },   // depends on caller\n  arrow: () => this?.name,           // inherits outer "this"\n};',
+    code: 'const obj = {\n  name: "A",                          // a plain property\n  regular() { return this.name; },   // "this" depends on how regular() is called (obj.regular())\n  arrow: () => this?.name,           // "this" is inherited from where obj itself was defined, not from the caller\n};',
   },
   {
     id: 'seed-js4',
@@ -52,119 +52,119 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     category: 'JavaScript',
     topic: 'Debounce vs throttle',
     explanation: 'Debounce delays execution until calls stop happening for a period (good for search-as-you-type). Throttle guarantees execution at most once per interval (good for scroll/resize handlers).',
-    code: 'function debounce(fn, ms) {\n  let t;\n  return (...args) => {\n    clearTimeout(t);\n    t = setTimeout(() => fn(...args), ms);\n  };\n}',
+    code: 'function debounce(fn, ms) {\n  let t; // holds the pending timer so later calls can cancel it\n  return (...args) => {\n    clearTimeout(t);                       // cancel whatever was previously scheduled\n    t = setTimeout(() => fn(...args), ms); // schedule a fresh call, ms after this last call\n  };\n}',
   },
   {
     id: 'seed-js-common1',
     category: 'JavaScript',
     topic: 'Deep clone an object',
     explanation: 'structuredClone() natively deep-clones any structured-cloneable value (objects, arrays, Maps, Dates) with no library needed. The JSON fallback works for plain data but silently drops functions/undefined and turns Dates into strings.',
-    code: 'const clone = structuredClone(original);\n\n// fallback for older environments (plain data only):\nconst clone2 = JSON.parse(JSON.stringify(original));',
+    code: 'const clone = structuredClone(original); // native deep clone — keeps Dates, Maps, Sets intact\n\n// fallback for older environments (plain data only):\nconst clone2 = JSON.parse(JSON.stringify(original)); // stringify then reparse — loses functions/undefined, Dates become strings',
   },
   {
     id: 'seed-js-common2',
     category: 'JavaScript',
     topic: 'Remove duplicates from an array',
     explanation: 'A Set only stores unique values, so spreading it back into an array is the shortest way to dedupe a list of primitives.',
-    code: 'const unique = [...new Set(arr)];',
+    code: 'const unique = [...new Set(arr)]; // Set keeps only unique values; spread turns it back into an array',
   },
   {
     id: 'seed-js-common3',
     category: 'JavaScript',
     topic: 'Flatten a nested array',
     explanation: 'flat(Infinity) collapses an array nested to any depth down to one flat array in a single call.',
-    code: 'const flat = nested.flat(Infinity);',
+    code: 'const flat = nested.flat(Infinity); // Infinity as the depth flattens any level of nesting',
   },
   {
     id: 'seed-js-common4',
     category: 'JavaScript',
     topic: 'Group array items by a key',
     explanation: 'A reduce that buckets items into an object keyed by whatever function you pass in — probably the most-reused array utility beyond map/filter/reduce themselves.',
-    code: 'function groupBy(arr, keyFn) {\n  return arr.reduce((acc, item) => {\n    const key = keyFn(item);\n    (acc[key] ||= []).push(item);\n    return acc;\n  }, {});\n}',
+    code: 'function groupBy(arr, keyFn) {\n  return arr.reduce((acc, item) => {\n    const key = keyFn(item);       // which bucket this item belongs to\n    (acc[key] ||= []).push(item);  // create the bucket array if it doesn\'t exist yet, then push into it\n    return acc;                    // carry the growing object into the next iteration\n  }, {});                          // {} is the starting (empty) accumulator\n}',
   },
   {
     id: 'seed-js-common5',
     category: 'JavaScript',
     topic: 'Sleep / delay inside async code',
     explanation: 'Wrapping setTimeout in a Promise lets you "await" a pause anywhere inside an async function — used for polling, staggered retries, or simulating latency.',
-    code: 'const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));\n\nawait sleep(1000);',
+    code: 'const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); // resolves after ms milliseconds\n\nawait sleep(1000); // pauses this async function here for 1 second',
   },
   {
     id: 'seed-js-common6',
     category: 'JavaScript',
     topic: 'Retry an async function with backoff',
     explanation: 'Wraps a flaky async call (a network request, a third-party API) so it retries a few times with an increasing delay before finally throwing.',
-    code: 'async function retry(fn, attempts = 3, delay = 300) {\n  for (let i = 0; i < attempts; i++) {\n    try {\n      return await fn();\n    } catch (err) {\n      if (i === attempts - 1) throw err;\n      await sleep(delay * 2 ** i);\n    }\n  }\n}',
+    code: 'async function retry(fn, attempts = 3, delay = 300) {\n  for (let i = 0; i < attempts; i++) {    // try up to `attempts` times\n    try {\n      return await fn();                  // success — stop here and return the result\n    } catch (err) {\n      if (i === attempts - 1) throw err;    // out of attempts — give up and rethrow\n      await sleep(delay * 2 ** i);          // wait longer after each failure (exponential backoff)\n    }\n  }\n}',
   },
   {
     id: 'seed-js-common7',
     category: 'JavaScript',
     topic: 'Throttle a function',
     explanation: 'Guarantees a function runs at most once per interval, dropping extra calls in between — used for scroll/resize/mousemove handlers where debounce would feel laggy.',
-    code: 'function throttle(fn, ms) {\n  let last = 0;\n  return (...args) => {\n    const now = Date.now();\n    if (now - last >= ms) {\n      last = now;\n      fn(...args);\n    }\n  };\n}',
+    code: 'function throttle(fn, ms) {\n  let last = 0;                    // timestamp of the last time fn actually ran\n  return (...args) => {\n    const now = Date.now();\n    if (now - last >= ms) {        // enough time has passed since the last run\n      last = now;                 // record this run\'s time\n      fn(...args);                // actually call the function\n    }                             // otherwise: silently drop this call\n  };\n}',
   },
   {
     id: 'seed-js-common8',
     category: 'JavaScript',
     topic: 'Memoize a function',
     explanation: "Caches a pure function's return value by its arguments so repeated calls with the same input skip recomputation entirely — only safe for deterministic, side-effect-free functions.",
-    code: 'function memoize(fn) {\n  const cache = new Map();\n  return (...args) => {\n    const key = JSON.stringify(args);\n    if (!cache.has(key)) cache.set(key, fn(...args));\n    return cache.get(key);\n  };\n}',
+    code: 'function memoize(fn) {\n  const cache = new Map();                  // stores past results keyed by their arguments\n  return (...args) => {\n    const key = JSON.stringify(args);       // turn the arguments into a lookup key\n    if (!cache.has(key)) cache.set(key, fn(...args)); // only compute if we haven\'t seen this input before\n    return cache.get(key);                  // return the cached (or just-computed) result\n  };\n}',
   },
   {
     id: 'seed-js-common9',
     category: 'JavaScript',
     topic: 'Chunk an array into groups of N',
     explanation: 'Splits one flat array into an array of fixed-size sub-arrays — common for batching API calls or paginating a UI grid.',
-    code: 'function chunk(arr, size) {\n  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>\n    arr.slice(i * size, i * size + size)\n  );\n}',
+    code: 'function chunk(arr, size) {\n  return Array.from(\n    { length: Math.ceil(arr.length / size) }, // how many chunks we\'ll end up with\n    (_, i) => arr.slice(i * size, i * size + size) // slice out the i-th chunk of `size` items\n  );\n}',
   },
   {
     id: 'seed-js-common10',
     category: 'JavaScript',
     topic: 'Shuffle an array (Fisher–Yates)',
     explanation: 'The correct, unbiased way to shuffle in place. arr.sort(() => Math.random() - 0.5) is a common shortcut but is not actually uniformly random.',
-    code: 'function shuffle(arr) {\n  for (let i = arr.length - 1; i > 0; i--) {\n    const j = Math.floor(Math.random() * (i + 1));\n    [arr[i], arr[j]] = [arr[j], arr[i]];\n  }\n  return arr;\n}',
+    code: 'function shuffle(arr) {\n  for (let i = arr.length - 1; i > 0; i--) {        // walk backwards from the last index\n    const j = Math.floor(Math.random() * (i + 1)); // pick a random index from 0..i (inclusive)\n    [arr[i], arr[j]] = [arr[j], arr[i]];            // swap the two elements in place\n  }\n  return arr; // same array reference, now shuffled\n}',
   },
   {
     id: 'seed-js-common11',
     category: 'JavaScript',
     topic: 'Curry a function',
     explanation: 'Turns a function that takes multiple arguments into a chain of single-argument functions, so you can partially apply arguments ahead of time.',
-    code: 'const curry = (fn) => (...args) =>\n  args.length >= fn.length ? fn(...args) : curry(fn.bind(null, ...args));',
+    code: 'const curry = (fn) => (...args) =>\n  args.length >= fn.length            // do we already have as many args as fn expects?\n    ? fn(...args)                      // yes — call it for real now\n    : curry(fn.bind(null, ...args));   // no — lock in these args and return a function waiting for more',
   },
   {
     id: 'seed-js-common12',
     category: 'JavaScript',
     topic: 'Compose / pipe functions',
     explanation: 'Combines several single-argument functions into one. pipe runs left-to-right, compose runs right-to-left — the basis of functional-style data transforms.',
-    code: 'const pipe = (...fns) => (x) => fns.reduce((v, fn) => fn(v), x);\nconst compose = (...fns) => (x) => fns.reduceRight((v, fn) => fn(v), x);',
+    code: 'const pipe = (...fns) => (x) => fns.reduce((v, fn) => fn(v), x);        // runs fns left-to-right, x is the starting value\nconst compose = (...fns) => (x) => fns.reduceRight((v, fn) => fn(v), x); // runs fns right-to-left',
   },
   {
     id: 'seed-js-common13',
     category: 'JavaScript',
     topic: 'Deep merge two objects',
     explanation: 'Object.assign / spread only merge one level deep — a nested object gets overwritten wholesale instead of combined. A recursive merge is needed for nested config-style objects.',
-    code: 'function deepMerge(target, source) {\n  for (const key in source) {\n    if (source[key] instanceof Object && key in target) {\n      Object.assign(source[key], deepMerge(target[key], source[key]));\n    }\n  }\n  return { ...target, ...source };\n}',
+    code: 'function deepMerge(target, source) {\n  for (const key in source) {\n    if (source[key] instanceof Object && key in target) {\n      // both sides have an object at this key — merge those nested objects recursively first\n      Object.assign(source[key], deepMerge(target[key], source[key]));\n    }\n  }\n  return { ...target, ...source }; // shallow merge on top; source\'s primitive values win\n}',
   },
   {
     id: 'seed-js-common14',
     category: 'JavaScript',
     topic: 'Fetch with a timeout',
     explanation: "fetch has no built-in timeout option — pair it with AbortController so a hung request doesn't wait forever.",
-    code: 'async function fetchWithTimeout(url, ms = 5000) {\n  const controller = new AbortController();\n  const id = setTimeout(() => controller.abort(), ms);\n  try {\n    return await fetch(url, { signal: controller.signal });\n  } finally {\n    clearTimeout(id);\n  }\n}',
+    code: 'async function fetchWithTimeout(url, ms = 5000) {\n  const controller = new AbortController();           // lets us cancel the request manually\n  const id = setTimeout(() => controller.abort(), ms); // auto-cancel after ms milliseconds\n  try {\n    return await fetch(url, { signal: controller.signal }); // fetch listens for the abort signal\n  } finally {\n    clearTimeout(id); // request finished in time — cancel the pending abort\n  }\n}',
   },
   {
     id: 'seed-js-common15',
     category: 'JavaScript',
     topic: 'Generate a unique ID',
     explanation: 'crypto.randomUUID() gives a spec-compliant UUID natively in modern browsers and Node — no library needed for most use cases.',
-    code: 'const id = crypto.randomUUID();',
+    code: 'const id = crypto.randomUUID(); // e.g. "3f9a1e2b-6c4d-4a3b-9f21-3d8e7c1a2b90" — spec-compliant, no library needed',
   },
   {
     id: 'seed-js-common16',
     category: 'JavaScript',
     topic: 'Array intersection, union, and difference',
     explanation: 'Converting both arrays to Sets makes these O(n) instead of nested loops, and reads clearly as what it is doing.',
-    code: 'const intersection = (a, b) => [...new Set(a)].filter((x) => new Set(b).has(x));\nconst union = (a, b) => [...new Set([...a, ...b])];\nconst difference = (a, b) => a.filter((x) => !new Set(b).has(x));',
+    code: 'const intersection = (a, b) => [...new Set(a)].filter((x) => new Set(b).has(x)); // items present in both arrays\nconst union = (a, b) => [...new Set([...a, ...b])];                              // all items, duplicates removed\nconst difference = (a, b) => a.filter((x) => !new Set(b).has(x));               // items in a that are not in b',
   },
 
   // --- TypeScript ---
@@ -180,21 +180,21 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     category: 'TypeScript',
     topic: 'Generics',
     explanation: 'Write a function or component once so it works across many types while still preserving the specific type information at each call site.',
-    code: 'function identity<T>(value: T): T {\n  return value;\n}\nidentity<string>("hi"); // T inferred as string',
+    code: 'function identity<T>(value: T): T {  // T is a placeholder for whatever type gets passed in\n  return value;                       // the return type matches the input type exactly\n}\nidentity<string>("hi"); // T inferred as string, so this returns a string, not "any"',
   },
   {
     id: 'seed-ts3',
     category: 'TypeScript',
     topic: 'Utility types: Partial, Pick, Omit, Record',
     explanation: 'Partial<T> makes every property optional. Pick<T, K> keeps only the listed keys. Omit<T, K> removes them. Record<K, V> builds an object type from a union of keys.',
-    code: 'interface User { id: string; name: string; email: string; }\ntype UserPreview = Pick<User, "id" | "name">;\ntype UserUpdate = Partial<Omit<User, "id">>;',
+    code: 'interface User { id: string; name: string; email: string; }\ntype UserPreview = Pick<User, "id" | "name">;  // only { id, name } — email is dropped\ntype UserUpdate = Partial<Omit<User, "id">>;   // { name?, email? } — id removed, the rest made optional',
   },
   {
     id: 'seed-ts4',
     category: 'TypeScript',
     topic: 'Discriminated unions',
     explanation: 'A shared literal field (e.g. "kind") lets TypeScript narrow to the exact matching shape inside each branch of a switch or if — no manual casting needed.',
-    code: 'type Shape =\n  | { kind: "circle"; radius: number }\n  | { kind: "square"; side: number };\n\nfunction area(s: Shape) {\n  if (s.kind === "circle") return Math.PI * s.radius ** 2;\n  return s.side ** 2;\n}',
+    code: 'type Shape =\n  | { kind: "circle"; radius: number }  // "kind" is the discriminant field\n  | { kind: "square"; side: number };\n\nfunction area(s: Shape) {\n  if (s.kind === "circle") return Math.PI * s.radius ** 2; // TS narrows s to have .radius here\n  return s.side ** 2;                                      // and narrows s to have .side here\n}',
   },
   {
     id: 'seed-ts5',
@@ -210,14 +210,14 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     category: 'React',
     topic: 'useEffect cleanup',
     explanation: 'Returning a function from useEffect cleans up subscriptions, timers, or listeners before the effect re-runs or the component unmounts — the most common source of memory leaks when skipped.',
-    code: 'useEffect(() => {\n  const id = setInterval(tick, 1000);\n  return () => clearInterval(id);\n}, []);',
+    code: 'useEffect(() => {\n  const id = setInterval(tick, 1000);  // start the interval when the component mounts\n  return () => clearInterval(id);      // cleanup — stop it before unmount or before this effect re-runs\n}, []); // empty deps array — run once on mount, clean up once on unmount',
   },
   {
     id: 'seed-react2',
     category: 'React',
     topic: 'useMemo vs useCallback',
     explanation: 'useMemo memoizes a computed value; useCallback memoizes a function reference. Both exist to avoid unnecessary re-renders in children or unstable dependency-array entries — not to make plain computations "faster."',
-    code: 'const total = useMemo(() => items.reduce((a, b) => a + b.price, 0), [items]);\nconst onClick = useCallback(() => doThing(id), [id]);',
+    code: 'const total = useMemo(() => items.reduce((a, b) => a + b.price, 0), [items]); // only recompute when items changes\nconst onClick = useCallback(() => doThing(id), [id]); // same function reference unless id changes',
   },
   {
     id: 'seed-react3',
@@ -247,21 +247,21 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     category: 'Next.js',
     topic: 'Server vs Client Components (App Router)',
     explanation: 'Server Components render on the server and ship no JS to the client by default. Add "use client" only on the components that actually need state, effects, or browser APIs — keeping the rest server-only cuts bundle size.',
-    code: "'use client';\n// only needed here because this component uses useState",
+    code: "'use client'; // opts this file into the client bundle\n// only needed here because this component uses useState — everything else can stay a Server Component",
   },
   {
     id: 'seed-next2',
     category: 'Next.js',
     topic: 'Data fetching and caching',
     explanation: 'fetch() inside a Server Component is cached and deduplicated by default in the App Router. Opt out with { cache: "no-store" } for always-fresh data, or use { next: { revalidate: N } } for time-based revalidation.',
-    code: 'await fetch(url, { cache: "no-store" });\nawait fetch(url, { next: { revalidate: 60 } });',
+    code: 'await fetch(url, { cache: "no-store" });        // never cache — always hit the network\nawait fetch(url, { next: { revalidate: 60 } });  // cache the response, refresh it at most every 60 seconds',
   },
   {
     id: 'seed-next3',
     category: 'Next.js',
     topic: 'Route handlers replace API routes',
     explanation: 'app/api/*/route.ts exports one function per HTTP verb (GET, POST, etc.) instead of a single default handler with a method switch, like the old pages/api style.',
-    code: 'export async function GET() { ... }\nexport async function POST(request) { ... }',
+    code: 'export async function GET() { ... }          // handles GET requests to this route\nexport async function POST(request) { ... }  // handles POST requests, receives the Request object',
   },
   {
     id: 'seed-next4',
@@ -277,7 +277,7 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     category: 'Browser & Web APIs',
     topic: 'Event delegation',
     explanation: 'Attach one listener to a parent element and read event.target instead of attaching a listener to every child. Fewer listeners, and it automatically works for children added later.',
-    code: 'list.addEventListener("click", (e) => {\n  if (e.target.matches("li")) handleItemClick(e.target);\n});',
+    code: 'list.addEventListener("click", (e) => {                  // one listener on the parent, not one per <li>\n  if (e.target.matches("li")) handleItemClick(e.target); // check which element was actually clicked\n});',
   },
   {
     id: 'seed-b2',
@@ -670,7 +670,7 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                 <textarea
                   className="qa-textarea mono-textarea"
                   rows={3}
-                  placeholder="Code example (optional)"
+                  placeholder="Code example (optional) — add a // comment on each line explaining what it does"
                   value={newEntry.code}
                   onChange={(e) => setNewEntry({ ...newEntry, code: e.target.value })}
                 />
@@ -724,7 +724,7 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                           rows={3}
                           value={editBuffer.code}
                           onChange={(e) => setEditBuffer({ ...editBuffer, code: e.target.value })}
-                          placeholder="Code example (optional)"
+                          placeholder="Code example (optional) — add a // comment on each line explaining what it does"
                         />
                         <div className="edit-actions">
                           <button onClick={() => saveEdit(entry.id)}>Save</button>

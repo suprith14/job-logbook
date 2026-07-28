@@ -8,6 +8,7 @@ import type {
   Company,
   CompanyOverrides,
   CoverLetterData,
+  FlowSequence,
   HRQuestion,
   ResumeData,
   Snippet,
@@ -28,6 +29,8 @@ export interface AppState {
   setSnippets: Dispatch<SetStateAction<Snippet[]>>;
   techRefs: TechRefEntry[];
   setTechRefs: Dispatch<SetStateAction<TechRefEntry[]>>;
+  flows: FlowSequence[];
+  setFlows: Dispatch<SetStateAction<FlowSequence[]>>;
   resume: ResumeData;
   setResume: Dispatch<SetStateAction<ResumeData>>;
   coverLetter: CoverLetterData;
@@ -50,6 +53,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
   const [hrQuestions, setHrQuestions] = useState<HRQuestion[]>([]);
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [techRefs, setTechRefs] = useState<TechRefEntry[]>([]);
+  const [flows, setFlows] = useState<FlowSequence[]>([]);
   const [resume, setResume] = useState<ResumeData>(DEFAULT_RESUME);
   const [coverLetter, setCoverLetter] = useState<CoverLetterData>(DEFAULT_COVER_LETTER);
   const [defaultRole, setDefaultRole] = useState('Senior Frontend Developer');
@@ -70,6 +74,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
         setHrQuestions(data.hrQuestions || []);
         setSnippets(data.snippets || []);
         setTechRefs(data.techRefs || []);
+        setFlows(data.flows || []);
         setResume(data.resume || DEFAULT_RESUME);
         setCoverLetter(
           data.coverLetter && Array.isArray(data.coverLetter.achievements)
@@ -97,6 +102,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
           hrQuestions,
           snippets,
           techRefs,
+          flows,
           resume,
           coverLetter,
           settings: { defaultRole },
@@ -113,7 +119,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
         });
     }, 400);
     return () => clearTimeout(t);
-  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, techRefs, resume, coverLetter, defaultRole, loaded, isAdmin]);
+  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, techRefs, flows, resume, coverLetter, defaultRole, loaded, isAdmin]);
 
   return {
     applications, setApplications,
@@ -122,6 +128,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
     hrQuestions, setHrQuestions,
     snippets, setSnippets,
     techRefs, setTechRefs,
+    flows, setFlows,
     resume, setResume,
     coverLetter, setCoverLetter,
     defaultRole, setDefaultRole,

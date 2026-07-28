@@ -2,7 +2,8 @@
 
 import { Dispatch, SetStateAction, useState, useMemo } from 'react';
 import CodeBlock from '../components/CodeBlock';
-import type { Difficulty, TechRefEntry } from '../types';
+import ProcessFlow from '../components/ProcessFlow';
+import type { Difficulty, TechRefEntry, TechRefStep } from '../types';
 
 export const DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard'];
 
@@ -320,6 +321,58 @@ export const DEFAULT_TECH_REFS: TechRefEntry[] = [
     explanation: 'The browser — not the server — blocks reading a cross-origin response unless the server sends matching Access-Control-Allow-* headers. The request often still reaches the server; the response just gets withheld from JS.',
     code: '',
   },
+  {
+    id: 'seed-b5',
+    category: 'Browser & Web APIs',
+    topic: 'What happens when you type a URL and press Enter',
+    explanation: 'One of the most common interview questions there is — walks through DNS, the TCP/TLS handshakes, the actual HTTP exchange, and how the browser turns the response into a rendered page. Play through the sequence below.',
+    code: '',
+    difficulty: 'Medium',
+    steps: [
+      {
+        title: 'DNS Lookup',
+        detail: 'The browser asks a DNS resolver to translate the domain name into an IP address — checking its own cache first, then the OS cache, then a recursive resolver (often your ISP\'s, or a public one like 8.8.8.8).',
+        from: 'Browser',
+        to: 'DNS Resolver',
+      },
+      {
+        title: 'TCP Handshake',
+        detail: 'The browser opens a TCP connection to that IP (usually port 443) via a three-way handshake: SYN, SYN-ACK, ACK — before any actual data is exchanged.',
+        from: 'Browser',
+        to: 'Server',
+      },
+      {
+        title: 'TLS Handshake',
+        detail: 'For HTTPS, browser and server negotiate encryption: exchanging certificates, verifying identity, and agreeing on a shared session key — all before a single byte of HTTP is sent.',
+        from: 'Browser',
+        to: 'Server',
+      },
+      {
+        title: 'HTTP Request Sent',
+        detail: 'The browser sends an HTTP request — method, headers, cookies — over the now-encrypted connection, asking for the page.',
+        from: 'Browser',
+        to: 'Server',
+      },
+      {
+        title: 'Server Processes the Request',
+        detail: 'The server (or a CDN/edge cache in front of it) runs its logic — querying a database, rendering a template, or simply returning something already cached — and builds an HTTP response.',
+        from: 'Server',
+        to: 'Server',
+      },
+      {
+        title: 'HTTP Response Returned',
+        detail: 'The server sends back a status code, headers, and a response body (typically HTML) over that same connection.',
+        from: 'Server',
+        to: 'Browser',
+      },
+      {
+        title: 'Browser Parses and Renders',
+        detail: 'The browser parses HTML into the DOM and CSS into the CSSOM, combines them into a render tree, computes layout, and paints pixels — fetching any additional CSS, JS, or images it discovers along the way.',
+        from: 'Browser',
+        to: 'Browser',
+      },
+    ],
+  },
 
   // --- System Design ---
   {
@@ -393,13 +446,45 @@ interface EntryDraft {
   explanation: string;
   code: string;
   difficulty: Difficulty;
+  stepsText: string;
 }
 
 interface EditDraft extends EntryDraft {
   category: string;
 }
 
-const EMPTY_DRAFT: EntryDraft = { topic: '', explanation: '', code: '', difficulty: 'Medium' };
+const EMPTY_DRAFT: EntryDraft = { topic: '', explanation: '', code: '', difficulty: 'Medium', stepsText: '' };
+
+// One step per line, written as "Title | what happens in this step".
+// One step per line: "Title | what happens" or, to draw an actor diagram,
+// "Title | From -> To | what happens" (From === To marks an internal/self step).
+function parseStepsText(text: string): TechRefStep[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split('|').map((p) => p.trim());
+      const title = parts[0] || '';
+      if (parts.length >= 3 && parts[1].includes('->')) {
+        const [from, to] = parts[1].split('->').map((p) => p.trim());
+        return { title, detail: parts.slice(2).join('|').trim(), from: from || undefined, to: to || undefined };
+      }
+      return { title, detail: parts.slice(1).join('|').trim() };
+    })
+    .filter((s) => s.title);
+}
+
+function stepsToText(steps?: TechRefStep[]): string {
+  return (steps || [])
+    .map((s) => {
+      const parts = [s.title];
+      if (s.from && s.to) parts.push(`${s.from} -> ${s.to}`);
+      if (s.detail) parts.push(s.detail);
+      return parts.join(' | ');
+    })
+    .join('\n');
+}
 
 interface SuggestedConcept {
   topic: string;
@@ -510,7 +595,15 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
     const explanation = newEntry.explanation.trim();
     if (!topic || !explanation) return;
     setTechRefs((prev) => [
-      { id: `t${Date.now()}${Math.random()}`, category, topic, explanation, code: newEntry.code.trim(), difficulty: newEntry.difficulty },
+      {
+        id: `t${Date.now()}${Math.random()}`,
+        category,
+        topic,
+        explanation,
+        code: newEntry.code.trim(),
+        difficulty: newEntry.difficulty,
+        steps: parseStepsText(newEntry.stepsText),
+      },
       ...prev,
     ]);
     setNewEntry(EMPTY_DRAFT);
@@ -531,6 +624,7 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
       explanation: entry.explanation,
       code: entry.code,
       difficulty: entry.difficulty || 'Medium',
+      stepsText: stepsToText(entry.steps),
     });
   }
 
@@ -541,7 +635,15 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
     setTechRefs((prev) =>
       prev.map((e) =>
         e.id === id
-          ? { ...e, category: editBuffer.category, topic, explanation, code: editBuffer.code.trim(), difficulty: editBuffer.difficulty }
+          ? {
+              ...e,
+              category: editBuffer.category,
+              topic,
+              explanation,
+              code: editBuffer.code.trim(),
+              difficulty: editBuffer.difficulty,
+              steps: parseStepsText(editBuffer.stepsText),
+            }
           : e
       )
     );
@@ -707,6 +809,13 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                   value={newEntry.code}
                   onChange={(e) => setNewEntry({ ...newEntry, code: e.target.value })}
                 />
+                <textarea
+                  className="qa-textarea"
+                  rows={3}
+                  placeholder={'Process flow steps (optional) — one per line:\nTitle | what happens\nor, for an animated actor diagram: Title | From -> To | what happens\ne.g. DNS Lookup | Browser -> DNS Resolver | Resolves the domain to an IP address'}
+                  value={newEntry.stepsText}
+                  onChange={(e) => setNewEntry({ ...newEntry, stepsText: e.target.value })}
+                />
                 <div className="edit-actions">
                   <button onClick={() => submitAdd(category)}>Add to {category}</button>
                   <button className="ghost-btn" onClick={cancelAdd}>Cancel</button>
@@ -759,6 +868,13 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                           onChange={(e) => setEditBuffer({ ...editBuffer, code: e.target.value })}
                           placeholder="Code example (optional) — add a // comment on each line explaining what it does"
                         />
+                        <textarea
+                          className="qa-textarea"
+                          rows={3}
+                          value={editBuffer.stepsText}
+                          onChange={(e) => setEditBuffer({ ...editBuffer, stepsText: e.target.value })}
+                          placeholder={'Process flow steps (optional) — Title | what happens, or Title | From -> To | what happens'}
+                        />
                         <div className="edit-actions">
                           <button onClick={() => saveEdit(entry.id)}>Save</button>
                           <button className="ghost-btn" onClick={cancelEdit}>Cancel</button>
@@ -793,6 +909,7 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                       {isExpanded && (
                         <>
                           <p className="tech-explanation">{entry.explanation}</p>
+                          {entry.steps && entry.steps.length > 0 && <ProcessFlow steps={entry.steps} title={entry.topic} />}
                           {entry.code && <CodeBlock code={entry.code} language={languageForCategory(entry.category)} />}
                         </>
                       )}

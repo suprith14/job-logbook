@@ -94,6 +94,29 @@ export interface CoverLetterData {
 
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
+export type StepStatus = 'success' | 'error';
+
+export interface TechRefStep {
+  title: string;
+  detail: string;
+  // Which actor sends this step's message and which receives it (e.g. "Browser" -> "Server").
+  // Optional — when a flow's steps don't set these, ProcessFlow falls back to a plain step chain.
+  // from === to represents an actor doing internal work rather than sending anything.
+  from?: string;
+  to?: string;
+  // What's actually sent on the wire for this step — e.g. "POST /login", "200 OK", a short
+  // JSON snippet. Shown as a label riding along with the traveling packet.
+  payload?: string;
+  // Roughly how long this step takes in the real world — e.g. "~40ms". Purely illustrative.
+  latency?: string;
+  // 'error' colors this step's packet/line/actors red instead of the default amber —
+  // for showing a rejection or failure path distinctly from the success case.
+  status?: StepStatus;
+  // The actual code behind this step (e.g. the bcrypt.compare call for a password check).
+  // Shown in a code panel beside the diagram in "system view" mode.
+  code?: string;
+}
+
 export interface TechRefEntry {
   id: string;
   category: string;
@@ -101,6 +124,14 @@ export interface TechRefEntry {
   explanation: string;
   code: string;
   difficulty?: Difficulty;
+  steps?: TechRefStep[];
+}
+
+export interface FlowSequence {
+  id: string;
+  title: string;
+  category?: string;
+  steps: TechRefStep[];
 }
 
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -118,5 +149,6 @@ export interface PersistedState {
   resume?: ResumeData;
   coverLetter?: CoverLetterData;
   techRefs?: TechRefEntry[];
+  flows?: FlowSequence[];
   settings?: AppSettings;
 }

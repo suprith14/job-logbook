@@ -8,10 +8,9 @@ interface GeminiJsonResult<T> {
   error?: string;
 }
 
-// Calls Gemini with a prompt that asks for a JSON array response, and returns the
-// parsed array (or an error string) — shared by any feature that asks Gemini to
-// generate a list of structured suggestions (companies, tech concepts, etc).
-export async function callGeminiForJSONArray<T = unknown>(prompt: string): Promise<GeminiJsonResult<T[]>> {
+// Calls Gemini with a prompt and returns the raw, fence-stripped text response (or an
+// error) — the shared fetch logic behind both the array and object JSON helpers below.
+async function callGeminiRaw(prompt: string): Promise<{ text?: string; error?: string }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return { error: GEMINI_KEY_MISSING_ERROR };
@@ -38,13 +37,31 @@ export async function callGeminiForJSONArray<T = unknown>(prompt: string): Promi
       .map((p) => p.text)
       .join('\n');
 
-    const cleaned = textBlocks.replace(/```json|```/g, '').trim();
-    const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      return { error: 'Could not parse a list from the response. Try again.' };
-    }
-    return { data: JSON.parse(jsonMatch[0]) as T[] };
+    return { text: textBlocks.replace(/```json|```/g, '').trim() };
   } catch (err) {
     return { error: String(err) };
   }
+}
+
+// For prompts that ask Gemini for a JSON array response (a list of suggestions).
+export async function callGeminiForJSONArray<T = unknown>(prompt: string): Promise<GeminiJsonResult<T[]>> {
+  const { text, error } = await callGeminiRaw(prompt);
+  if (error) return { error };
+  const jsonMatch = (text || '').match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    return { error: 'Could not parse a list from the response. Try again.' };
+  }
+  return { data: JSON.parse(jsonMatch[0]) as T[] };
+}
+
+// For prompts that ask Gemini for a single JSON object response (e.g. a whole flow:
+// title + steps).
+export async function callGeminiForJSONObject<T = unknown>(prompt: string): Promise<GeminiJsonResult<T>> {
+  const { text, error } = await callGeminiRaw(prompt);
+  if (error) return { error };
+  const jsonMatch = (text || '').match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    return { error: 'Could not parse a result from the response. Try again.' };
+  }
+  return { data: JSON.parse(jsonMatch[0]) as T };
 }

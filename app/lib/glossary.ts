@@ -1,0 +1,31 @@
+// Plain-English definitions for jargon that shows up in flow-step details across the
+// seed flows and AI-generated ones alike. ProcessFlow wraps the first occurrence of any
+// of these terms in a step's detail text with a hoverable/focusable tooltip.
+export const GLOSSARY: Record<string, string> = {
+  'DNS': 'Domain Name System — translates human-readable domain names into IP addresses.',
+  'TCP handshake': 'The three-step SYN / SYN-ACK / ACK exchange that opens a reliable connection before any data is sent.',
+  'TLS handshake': 'The negotiation where browser and server agree on encryption and exchange certificates before any HTTP data flows.',
+  'DOM': "The Document Object Model — the browser's in-memory tree representation of the page's HTML.",
+  'CSSOM': "The CSS Object Model — the browser's in-memory tree of parsed styles, the CSS counterpart of the DOM.",
+  'render tree': 'The DOM and CSSOM combined into just the nodes that will actually be visible, each paired with its computed style.',
+  'reflow': 'Recalculating the position and size of elements on the page — another name for layout.',
+  'layout': 'The step where the browser computes the exact size and position of every visible element.',
+  'paint': 'The step where the browser fills in pixels — colors, text, borders, shadows — for each element.',
+  'composite': 'The step where separately-painted layers are combined by the GPU into the final on-screen frame.',
+  'hydration': "Attaching event listeners and interactivity to server-rendered HTML, without re-creating the DOM from scratch.",
+  'reconciliation': "React's process of comparing a new element tree to the previous one to find the minimal real DOM changes needed.",
+  'virtual DOM': 'A lightweight in-memory representation of the UI that React diffs against the previous version before touching the real DOM.',
+  'SSR': 'Server-Side Rendering — running the UI framework on the server to send fully-formed HTML instead of an empty shell.',
+  'JWT': 'JSON Web Token — a signed, self-contained token that carries claims like a user ID without needing a server-side lookup.',
+  'debounce': 'Delaying an action until a burst of events (like keystrokes) has paused, to avoid firing it on every single one.',
+  'CDN': 'Content Delivery Network — a set of geographically distributed servers that cache and serve content closer to the user.',
+  'cache hit': "A request that's served from a stored copy instead of being recomputed or refetched from the origin.",
+  'cache miss': 'A request for something not currently in the cache, requiring a fetch from the original source.',
+  'WebSocket': "A persistent, two-way connection protocol that lets a server push data to a client without repeated polling.",
+  'rate limiting': 'Capping how many requests a client can make in a time window, to protect a service from overload or abuse.',
+  'bcrypt': 'A slow, salted password-hashing algorithm designed to resist brute-force attacks.',
+  'idempotent': 'An operation that produces the same result no matter how many times it is repeated.',
+  'access token': 'A short-lived credential that authorizes API requests, deliberately kept short-lived to limit damage if stolen.',
+  'refresh token': 'A longer-lived credential used only to obtain a new access token, without requiring the user to log in again.',
+  'IntersectionObserver': 'A browser API that efficiently detects when an element enters or leaves the viewport, without manual scroll-position math.',
+};

@@ -714,7 +714,8 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   color:var(--text-muted);
   margin:0;
 }
-.code-block{position:relative;margin:4px 0 0;}
+.code-block{margin:4px 0 0;}
+.code-block-actions{display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px;}
 .code-block pre{
   margin:0;
   background:var(--ink);
@@ -729,9 +730,6 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 }
 .code-block code{background:none;font-family:inherit;color:var(--text);text-shadow:none;}
 .code-copy-btn{
-  position:absolute;
-  top:8px;
-  right:8px;
   font-family:'IBM Plex Mono',monospace;
   font-size:10.5px;
   text-transform:uppercase;
@@ -739,14 +737,10 @@ tr:hover td{background:rgba(255,255,255,0.015);}
   background:var(--surface-raised);
   border:1px solid var(--line);
   color:var(--text-muted);
-  padding:3px 8px;
+  padding:3px 9px;
   border-radius:6px;
   cursor:pointer;
-  opacity:0;
-  transition:opacity 0.15s;
 }
-.code-block:hover .code-copy-btn,
-.code-block:focus-within .code-copy-btn{opacity:1;}
 .code-copy-btn:hover{border-color:var(--amber-dim);color:var(--amber);}
 
 /* Prism token colors, mapped to the app's existing palette instead of a stock theme */
@@ -758,6 +752,75 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 .token.operator,.token.punctuation{color:var(--text-muted);}
 .token.class-name,.token.builtin,.token.maybe-class-name{color:var(--amber);}
 .token.parameter,.token.property{color:var(--text);}
+
+.code-flow{display:flex;flex-direction:column;}
+.code-flow-pre{
+  margin:0;
+  background:var(--ink);
+  border:1px solid var(--line);
+  border-radius:8px 8px 0 0;
+  padding:14px 16px;
+  overflow-x:auto;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px;
+  line-height:1.6;
+}
+.code-flow-line{
+  padding:1px 6px;
+  margin:0 -6px;
+  border-radius:4px;
+  white-space:pre;
+  opacity:0.45;
+  transition:background 0.25s, opacity 0.25s;
+}
+.code-flow-line.active{
+  background:rgba(232,163,61,0.14);
+  opacity:1;
+}
+.code-flow-note{
+  background:var(--surface-raised);
+  border:1px solid var(--line);
+  border-top:none;
+  padding:10px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.code-flow-step-count{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  color:var(--amber);
+}
+.code-flow-note p{margin:0;font-size:13px;line-height:1.5;color:var(--text);}
+.code-flow-controls{
+  display:flex;
+  gap:6px;
+  background:var(--surface-raised);
+  border:1px solid var(--line);
+  border-top:none;
+  border-radius:0 0 8px 8px;
+  padding:8px;
+}
+.code-flow-controls button{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:0.03em;
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--text-muted);
+  padding:4px 10px;
+  border-radius:6px;
+  cursor:pointer;
+}
+.code-flow-controls button:hover:not(:disabled){border-color:var(--amber-dim);color:var(--amber);}
+.code-flow-controls button:disabled{opacity:0.4;cursor:default;}
+.code-flow-controls button.primary{border-color:var(--amber-dim);color:var(--amber);}
+@media (prefers-reduced-motion: reduce){
+  .code-flow-line{transition:none;}
+}
 
 .qa-list{display:flex;flex-direction:column;gap:12px;}
 .qa-card{
@@ -808,6 +871,29 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 .difficulty-hard{color:var(--rose);border-color:var(--rose);}
 .qa-question{font-weight:600;font-size:14.5px;line-height:1.45;}
 .qa-actions{display:flex;gap:4px;flex-shrink:0;}
+
+.tech-card-header{cursor:pointer;user-select:none;}
+.tech-card-header:hover .qa-question{color:var(--amber);}
+.tech-card-header-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.tech-chevron{color:var(--text-faint);font-size:12px;width:12px;text-align:center;}
+
+.cat-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:26px;
+  height:18px;
+  padding:0 5px;
+  margin-right:8px;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:0.02em;
+  background:var(--surface-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+  color:var(--text-muted);
+  vertical-align:middle;
+}
 .qa-answer{
   display:flex;
   flex-direction:column;

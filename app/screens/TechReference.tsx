@@ -13,6 +13,18 @@ function languageForCategory(category: string): string {
   return 'javascript';
 }
 
+// A short glyph per category so a section is identifiable before reading its label.
+// React's atom and Next.js's triangle are their actual logomarks; the rest are short codes.
+const CATEGORY_ICON: Record<string, string> = {
+  JavaScript: 'JS',
+  TypeScript: 'TS',
+  React: '⚛',
+  'Next.js': '▲',
+  'Browser & Web APIs': 'WEB',
+  'System Design': 'SYS',
+  'Production & Real-World': 'PROD',
+};
+
 // Add new topic areas here as they come up — the rest of the screen (filter, add-form,
 // starter-pack loader) picks up new categories automatically.
 export const TECH_CATEGORIES = [
@@ -403,6 +415,16 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
   const [newEntry, setNewEntry] = useState<EntryDraft>(EMPTY_DRAFT);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState<EditDraft>({ ...EMPTY_DRAFT, category: TECH_CATEGORIES[0] });
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const [suggestingCategory, setSuggestingCategory] = useState<string | null>(null);
   const [suggestDifficulty, setSuggestDifficulty] = useState<Difficulty>('Medium');
@@ -596,7 +618,10 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
         return (
           <div className="cat-group" key={category}>
             <div className="cat-title-row">
-              <div className="cat-title">{category}</div>
+              <div className="cat-title">
+                <span className="cat-icon">{CATEGORY_ICON[category] || category.slice(0, 2).toUpperCase()}</span>
+                {category}
+              </div>
               {isAdmin && (
                 <div className="cat-title-actions">
                   <button
@@ -741,28 +766,36 @@ export default function TechReference({ techRefs, setTechRefs, isAdmin }: TechRe
                       </div>
                     );
                   }
+                  const isExpanded = expandedIds.has(entry.id);
                   return (
-                    <div className="qa-card" key={entry.id}>
-                      <div className="qa-question-row">
+                    <div className={`qa-card tech-card${isExpanded ? ' expanded' : ''}`} key={entry.id}>
+                      <div className="qa-question-row tech-card-header" onClick={() => toggleExpanded(entry.id)}>
                         <div>
                           {entry.difficulty && (
                             <span className={`difficulty-tag difficulty-${entry.difficulty.toLowerCase()}`}>{entry.difficulty}</span>
                           )}
                           <div className="qa-question">{entry.topic}</div>
                         </div>
-                        {isAdmin && (
-                          <div className="qa-actions">
-                            <button className="edit-icon" onClick={() => startEdit(entry)} title="Edit">
-                              ✎
-                            </button>
-                            <button className="del-btn" onClick={() => deleteEntry(entry.id)} title="Delete">
-                              ✕
-                            </button>
-                          </div>
-                        )}
+                        <div className="tech-card-header-right">
+                          {isAdmin && (
+                            <div className="qa-actions" onClick={(e) => e.stopPropagation()}>
+                              <button className="edit-icon" onClick={() => startEdit(entry)} title="Edit">
+                                ✎
+                              </button>
+                              <button className="del-btn" onClick={() => deleteEntry(entry.id)} title="Delete">
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                          <span className="tech-chevron">{isExpanded ? '▾' : '▸'}</span>
+                        </div>
                       </div>
-                      <p className="tech-explanation">{entry.explanation}</p>
-                      {entry.code && <CodeBlock code={entry.code} language={languageForCategory(entry.category)} />}
+                      {isExpanded && (
+                        <>
+                          <p className="tech-explanation">{entry.explanation}</p>
+                          {entry.code && <CodeBlock code={entry.code} language={languageForCategory(entry.category)} />}
+                        </>
+                      )}
                     </div>
                   );
                 })}

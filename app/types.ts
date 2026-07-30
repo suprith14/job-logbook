@@ -134,6 +134,25 @@ export interface FlowSequence {
   steps: TechRefStep[];
 }
 
+export type CompanyTier = 'FAANG / Tier-1' | 'Product-based Tier-2' | 'Service-based / IT-services' | 'Startup';
+
+export type PrepQuestionCategory = 'Technical' | 'System Design' | 'Behavioral' | 'Coding/DSA';
+
+export interface PrepQuestion {
+  id: string;
+  category: PrepQuestionCategory;
+  question: string;
+  guidance: string;
+}
+
+export interface PrepSet {
+  id: string;
+  company: string;
+  tier: CompanyTier;
+  years: number;
+  questions: PrepQuestion[];
+}
+
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export interface AppSettings {
@@ -150,5 +169,6 @@ export interface PersistedState {
   coverLetter?: CoverLetterData;
   techRefs?: TechRefEntry[];
   flows?: FlowSequence[];
+  prepSets?: PrepSet[];
   settings?: AppSettings;
 }

@@ -153,6 +153,19 @@ export interface PrepSet {
   questions: PrepQuestion[];
 }
 
+export interface DialogueLine {
+  speaker: string;
+  line: string;
+}
+
+export interface CorporateScenario {
+  id: string;
+  category: string;
+  situation: string;
+  dialogue: DialogueLine[];
+  takeaway: string;
+}
+
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export interface AppSettings {
@@ -170,5 +183,6 @@ export interface PersistedState {
   techRefs?: TechRefEntry[];
   flows?: FlowSequence[];
   prepSets?: PrepSet[];
+  corporateScenarios?: CorporateScenario[];
   settings?: AppSettings;
 }

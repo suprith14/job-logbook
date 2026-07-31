@@ -11,6 +11,7 @@ import HRPrep from './screens/HRPrep';
 import TechReference from './screens/TechReference';
 import FlowBuilder from './screens/FlowBuilder';
 import CompanyPrep from './screens/CompanyPrep';
+import CorporatePlaybook from './screens/CorporatePlaybook';
 import SnippetsPanel from './screens/SnippetsPanel';
 import CompGuide from './screens/CompGuide';
 import ResumeBuilder from './screens/ResumeBuilder';
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'tech', label: 'Tech Reference' },
   { id: 'flows', label: 'Flow Builder' },
   { id: 'companyPrep', label: 'Company Prep' },
+  { id: 'corporate', label: 'Corporate Playbook' },
   { id: 'snippets', label: 'Snippets' },
   { id: 'comp', label: 'Comp Guide' },
   { id: 'resume', label: 'Resume' },
@@ -66,6 +68,7 @@ export default function Home() {
     techRefs, setTechRefs,
     flows, setFlows,
     prepSets, setPrepSets,
+    corporateScenarios, setCorporateScenarios,
     resume, setResume,
     coverLetter, setCoverLetter,
     defaultRole, setDefaultRole,
@@ -143,6 +146,10 @@ export default function Home() {
 
       {activeTab === 'companyPrep' && (
         <CompanyPrep prepSets={prepSets} setPrepSets={setPrepSets} isAdmin={isAdmin} />
+      )}
+
+      {activeTab === 'corporate' && (
+        <CorporatePlaybook scenarios={corporateScenarios} setScenarios={setCorporateScenarios} isAdmin={isAdmin} />
       )}
 
       {activeTab === 'snippets' && (

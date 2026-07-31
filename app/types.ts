@@ -179,6 +179,19 @@ export interface StructureSet {
   entries: StructureEntry[];
 }
 
+export interface DBRecommendation {
+  name: string;
+  why: string;
+  tradeoffs: string;
+  usedBy?: string;
+}
+
+export interface DBScenarioSet {
+  id: string;
+  scenario: string;
+  recommendations: DBRecommendation[];
+}
+
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export interface AppSettings {
@@ -198,5 +211,6 @@ export interface PersistedState {
   prepSets?: PrepSet[];
   corporateScenarios?: CorporateScenario[];
   structureSets?: StructureSet[];
+  dbScenarioSets?: DBScenarioSet[];
   settings?: AppSettings;
 }

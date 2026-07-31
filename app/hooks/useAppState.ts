@@ -9,6 +9,7 @@ import type {
   CompanyOverrides,
   CorporateScenario,
   CoverLetterData,
+  DBScenarioSet,
   FlowSequence,
   HRQuestion,
   PrepSet,
@@ -40,6 +41,8 @@ export interface AppState {
   setCorporateScenarios: Dispatch<SetStateAction<CorporateScenario[]>>;
   structureSets: StructureSet[];
   setStructureSets: Dispatch<SetStateAction<StructureSet[]>>;
+  dbScenarioSets: DBScenarioSet[];
+  setDbScenarioSets: Dispatch<SetStateAction<DBScenarioSet[]>>;
   resume: ResumeData;
   setResume: Dispatch<SetStateAction<ResumeData>>;
   coverLetter: CoverLetterData;
@@ -66,6 +69,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
   const [prepSets, setPrepSets] = useState<PrepSet[]>([]);
   const [corporateScenarios, setCorporateScenarios] = useState<CorporateScenario[]>([]);
   const [structureSets, setStructureSets] = useState<StructureSet[]>([]);
+  const [dbScenarioSets, setDbScenarioSets] = useState<DBScenarioSet[]>([]);
   const [resume, setResume] = useState<ResumeData>(DEFAULT_RESUME);
   const [coverLetter, setCoverLetter] = useState<CoverLetterData>(DEFAULT_COVER_LETTER);
   const [defaultRole, setDefaultRole] = useState('Senior Frontend Developer');
@@ -90,6 +94,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
         setPrepSets(data.prepSets || []);
         setCorporateScenarios(data.corporateScenarios || []);
         setStructureSets(data.structureSets || []);
+        setDbScenarioSets(data.dbScenarioSets || []);
         setResume(data.resume || DEFAULT_RESUME);
         setCoverLetter(
           data.coverLetter && Array.isArray(data.coverLetter.achievements)
@@ -121,6 +126,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
           prepSets,
           corporateScenarios,
           structureSets,
+          dbScenarioSets,
           resume,
           coverLetter,
           settings: { defaultRole },
@@ -137,7 +143,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
         });
     }, 400);
     return () => clearTimeout(t);
-  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, techRefs, flows, prepSets, corporateScenarios, structureSets, resume, coverLetter, defaultRole, loaded, isAdmin]);
+  }, [applications, customCompanies, companyOverrides, hrQuestions, snippets, techRefs, flows, prepSets, corporateScenarios, structureSets, dbScenarioSets, resume, coverLetter, defaultRole, loaded, isAdmin]);
 
   return {
     applications, setApplications,
@@ -150,6 +156,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
     prepSets, setPrepSets,
     corporateScenarios, setCorporateScenarios,
     structureSets, setStructureSets,
+    dbScenarioSets, setDbScenarioSets,
     resume, setResume,
     coverLetter, setCoverLetter,
     defaultRole, setDefaultRole,

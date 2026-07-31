@@ -13,6 +13,8 @@ import FlowBuilder from './screens/FlowBuilder';
 import CompanyPrep from './screens/CompanyPrep';
 import CorporatePlaybook from './screens/CorporatePlaybook';
 import ProjectStructure from './screens/ProjectStructure';
+import DatabaseGuide from './screens/DatabaseGuide';
+import CSSAnimations from './screens/CSSAnimations';
 import SnippetsPanel from './screens/SnippetsPanel';
 import CompGuide from './screens/CompGuide';
 import ResumeBuilder from './screens/ResumeBuilder';
@@ -28,6 +30,8 @@ const TABS = [
   { id: 'companyPrep', label: 'Company Prep' },
   { id: 'corporate', label: 'Corporate Playbook' },
   { id: 'structure', label: 'Project Structure' },
+  { id: 'database', label: 'Database Guide' },
+  { id: 'css', label: 'CSS & Animation' },
   { id: 'snippets', label: 'Snippets' },
   { id: 'comp', label: 'Comp Guide' },
   { id: 'resume', label: 'Resume' },
@@ -72,6 +76,7 @@ export default function Home() {
     prepSets, setPrepSets,
     corporateScenarios, setCorporateScenarios,
     structureSets, setStructureSets,
+    dbScenarioSets, setDbScenarioSets,
     resume, setResume,
     coverLetter, setCoverLetter,
     defaultRole, setDefaultRole,
@@ -158,6 +163,12 @@ export default function Home() {
       {activeTab === 'structure' && (
         <ProjectStructure structureSets={structureSets} setStructureSets={setStructureSets} isAdmin={isAdmin} />
       )}
+
+      {activeTab === 'database' && (
+        <DatabaseGuide dbScenarioSets={dbScenarioSets} setDbScenarioSets={setDbScenarioSets} isAdmin={isAdmin} />
+      )}
+
+      {activeTab === 'css' && <CSSAnimations />}
 
       {activeTab === 'snippets' && (
         <SnippetsPanel snippets={snippets} setSnippets={setSnippets} isAdmin={isAdmin} />

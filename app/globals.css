@@ -752,6 +752,38 @@ tr:hover td{background:rgba(255,255,255,0.015);}
 .token.operator,.token.punctuation{color:var(--text-muted);}
 .token.class-name,.token.builtin,.token.maybe-class-name{color:var(--amber);}
 .token.parameter,.token.property{color:var(--text);}
+.token.selector,.token.attr-name{color:var(--teal);}
+.token.atrule,.token.rule,.token.important{color:var(--amber);}
+.token.unit{color:var(--rose);}
+
+.css-demo-frame{
+  background:var(--ink);
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:16px;
+  margin:10px 0;
+}
+.css-controls-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:8px;
+  margin-bottom:4px;
+}
+.css-control{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:11px;
+  color:var(--text-faint);
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  font-family:'IBM Plex Mono',monospace;
+}
+.css-control select{
+  text-transform:none;
+  letter-spacing:normal;
+  font-family:'Inter',sans-serif;
+}
 
 .code-flow{display:flex;flex-direction:column;}
 .code-flow-pre{

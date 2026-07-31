@@ -166,6 +166,19 @@ export interface CorporateScenario {
   takeaway: string;
 }
 
+export interface StructureEntry {
+  path: string;
+  why: string;
+  when: string;
+  content?: string;
+}
+
+export interface StructureSet {
+  id: string;
+  stackName: string;
+  entries: StructureEntry[];
+}
+
 export type SyncStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export interface AppSettings {
@@ -184,5 +197,6 @@ export interface PersistedState {
   flows?: FlowSequence[];
   prepSets?: PrepSet[];
   corporateScenarios?: CorporateScenario[];
+  structureSets?: StructureSet[];
   settings?: AppSettings;
 }

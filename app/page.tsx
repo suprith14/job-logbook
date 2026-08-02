@@ -69,6 +69,7 @@ export default function Home() {
     applications, setApplications,
     customCompanies, setCustomCompanies,
     companyOverrides, setCompanyOverrides,
+    favoriteCompanyIds, setFavoriteCompanyIds,
     hrQuestions, setHrQuestions,
     snippets, setSnippets,
     techRefs, setTechRefs,
@@ -130,6 +131,8 @@ export default function Home() {
           setCustomCompanies={setCustomCompanies}
           companyOverrides={companyOverrides}
           setCompanyOverrides={setCompanyOverrides}
+          favoriteCompanyIds={favoriteCompanyIds}
+          setFavoriteCompanyIds={setFavoriteCompanyIds}
           defaultRole={defaultRole}
           setDefaultRole={setDefaultRole}
           isAdmin={isAdmin}

@@ -5,6 +5,9 @@ export interface Company {
   name: string;
   link: string;
   category: string;
+  // ISO timestamp of when this company was added to the list — only set for
+  // user-added companies (bundled seed companies have no real "added" date).
+  addedAt?: string;
 }
 
 export type CompanyOverrides = Record<string, Partial<Pick<Company, 'name' | 'link' | 'category'>>>;
@@ -212,5 +215,6 @@ export interface PersistedState {
   corporateScenarios?: CorporateScenario[];
   structureSets?: StructureSet[];
   dbScenarioSets?: DBScenarioSet[];
+  favoriteCompanyIds?: string[];
   settings?: AppSettings;
 }

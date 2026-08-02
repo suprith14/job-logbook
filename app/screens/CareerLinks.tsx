@@ -12,9 +12,20 @@ interface CareerLinksProps {
   setCustomCompanies: Dispatch<SetStateAction<Company[]>>;
   companyOverrides: CompanyOverrides;
   setCompanyOverrides: Dispatch<SetStateAction<CompanyOverrides>>;
+  favoriteCompanyIds: string[];
+  setFavoriteCompanyIds: Dispatch<SetStateAction<string[]>>;
   defaultRole: string;
   setDefaultRole: Dispatch<SetStateAction<string>>;
   isAdmin: boolean;
+}
+
+// Formats an ISO timestamp as e.g. "5 Jan 2026, 3:45 PM" — only user-added companies
+// have one; bundled seed companies were never "added" at a point in time.
+function formatAddedAt(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) +
+    ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
 interface CompanyForm {
@@ -36,6 +47,8 @@ export default function CareerLinks({
   setCustomCompanies,
   companyOverrides,
   setCompanyOverrides,
+  favoriteCompanyIds,
+  setFavoriteCompanyIds,
   defaultRole,
   setDefaultRole,
   isAdmin,
@@ -43,12 +56,14 @@ export default function CareerLinks({
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
   const [hideAppliedToday, setHideAppliedToday] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyForm>({ name: '', link: '', category: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState<CompanyForm>({ name: '', link: '', category: '' });
   const [bulkText, setBulkText] = useState('');
   const [bulkResult, setBulkResult] = useState('');
   const [showBulk, setShowBulk] = useState(false);
+  const [copiedBulkText, setCopiedBulkText] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [discovering, setDiscovering] = useState(false);
@@ -61,15 +76,27 @@ export default function CareerLinks({
 
   const categories = useMemo(() => [...new Set(allCompanies.map((c) => c.category))], [allCompanies]);
 
+  const favoriteSet = useMemo(() => new Set(favoriteCompanyIds), [favoriteCompanyIds]);
+
+  function isFavorite(id: string) {
+    return favoriteSet.has(id);
+  }
+
+  function toggleFavorite(id: string) {
+    if (!isAdmin) return;
+    setFavoriteCompanyIds((prev) => (prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]));
+  }
+
   const filteredCompanies = useMemo(() => {
     const s = search.toLowerCase();
     return allCompanies.filter(
       (c) =>
         c.name.toLowerCase().includes(s) &&
         (catFilter === '' || c.category === catFilter) &&
-        (!hideAppliedToday || !applications.some((a) => a.company === c.name && a.appliedDate === todayStr()))
+        (!hideAppliedToday || !applications.some((a) => a.company === c.name && a.appliedDate === todayStr())) &&
+        (!favoritesOnly || favoriteSet.has(c.id))
     );
-  }, [allCompanies, search, catFilter, hideAppliedToday, applications]);
+  }, [allCompanies, search, catFilter, hideAppliedToday, applications, favoritesOnly, favoriteSet]);
 
   const groupedCompanies = useMemo(() => {
     const groups: Record<string, Company[]> = {};
@@ -77,8 +104,12 @@ export default function CareerLinks({
       if (!groups[c.category]) groups[c.category] = [];
       groups[c.category].push(c);
     });
+    // Favorited companies float to the top of each category group.
+    Object.keys(groups).forEach((cat) => {
+      groups[cat].sort((a, b) => Number(favoriteSet.has(b.id)) - Number(favoriteSet.has(a.id)));
+    });
     return groups;
-  }, [filteredCompanies]);
+  }, [filteredCompanies, favoriteSet]);
 
   function isAppliedToday(companyName: string) {
     const t = todayStr();
@@ -117,7 +148,10 @@ export default function CareerLinks({
     const category = newCompany.category.trim() || 'Added by you';
     if (!name || !link) return;
     if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
-    setCustomCompanies((prev) => [...prev, { id: `c${Date.now()}${Math.random()}`, name, link, category }]);
+    setCustomCompanies((prev) => [
+      ...prev,
+      { id: `c${Date.now()}${Math.random()}`, name, link, category, addedAt: new Date().toISOString() },
+    ]);
     setNewCompany({ name: '', link: '', category: '' });
   }
 
@@ -141,7 +175,7 @@ export default function CareerLinks({
         return;
       }
       if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
-      toAdd.push({ id: `c${Date.now()}${Math.random()}${idx}`, name, link, category });
+      toAdd.push({ id: `c${Date.now()}${Math.random()}${idx}`, name, link, category, addedAt: new Date().toISOString() });
       existingNames.add(name.toLowerCase());
     });
     if (toAdd.length > 0) {
@@ -149,6 +183,26 @@ export default function CareerLinks({
     }
     setBulkResult(`Added ${toAdd.length} compan${toAdd.length === 1 ? 'y' : 'ies'}.${skipped ? ` Skipped ${skipped} (duplicate or missing link).` : ''}`);
     setBulkText('');
+  }
+
+  // Same "Name, https://link, Category" line format bulkImportCompanies parses — round-trips
+  // cleanly through this same textarea, so exporting and re-importing is the same feature.
+  function exportCompaniesToBulkText() {
+    if (!isAdmin) return;
+    const text = customCompanies.map((c) => `${c.name}, ${c.link}, ${c.category}`).join('\n');
+    setBulkText(text);
+    setBulkResult('');
+    setShowBulk(true);
+  }
+
+  async function copyBulkText() {
+    try {
+      await navigator.clipboard.writeText(bulkText);
+    } catch (err) {
+      return;
+    }
+    setCopiedBulkText(true);
+    setTimeout(() => setCopiedBulkText(false), 1500);
   }
 
   function updateCompany(company: Company, edits: Partial<Company>) {
@@ -219,7 +273,7 @@ export default function CareerLinks({
     if (!isAdmin) return;
     const toAdd = (suggestions || [])
       .filter((c) => selectedSuggestions.has(c.name))
-      .map((c) => ({ ...c, id: `c${Date.now()}${Math.random()}` }));
+      .map((c) => ({ ...c, id: `c${Date.now()}${Math.random()}`, addedAt: new Date().toISOString() }));
     setCustomCompanies((prev) => [...prev, ...toAdd]);
     setSuggestions(null);
     setSelectedSuggestions(new Set());
@@ -243,6 +297,10 @@ export default function CareerLinks({
             </option>
           ))}
         </select>
+        <label className="hide-toggle">
+          <input type="checkbox" checked={favoritesOnly} onChange={(e) => setFavoritesOnly(e.target.checked)} />
+          ★ Favorites only
+        </label>
       </div>
 
       {isAdmin && (
@@ -289,17 +347,24 @@ export default function CareerLinks({
 
       {isAdmin && (
         <div className="bulk-section">
-          <button className="bulk-toggle" onClick={() => setShowBulk((v) => !v)}>
-            {showBulk ? '▾' : '▸'} Bulk import (paste from a spreadsheet)
-          </button>
+          <div className="bulk-section-toggles">
+            <button className="bulk-toggle" onClick={() => setShowBulk((v) => !v)}>
+              {showBulk ? '▾' : '▸'} Bulk import (paste from a spreadsheet)
+            </button>
+            <button className="ghost-btn" onClick={exportCompaniesToBulkText} disabled={customCompanies.length === 0}>
+              ⬇ Export your added companies
+            </button>
+          </div>
           {showBulk && (
             <div className="bulk-panel">
               <div className="bulk-hint">
-                One company per line: <code>Name, https://link, Category</code> — category is optional.
+                One company per line: <code>Name, https://link, Category</code> — category is optional. Export fills
+                this box with your added companies in the same format — copy it out to review with an AI assistant,
+                edit as needed, then paste it back here and import.
               </div>
               <textarea
                 className="bulk-textarea"
-                rows={6}
+                rows={8}
                 placeholder={'Acme Inc, https://acme.com/careers, Bangalore product\nExample Co, https://example.com/jobs'}
                 value={bulkText}
                 onChange={(e) => setBulkText(e.target.value)}
@@ -307,6 +372,9 @@ export default function CareerLinks({
               <div className="bulk-actions">
                 <button onClick={bulkImportCompanies} disabled={!bulkText.trim()}>
                   Import all
+                </button>
+                <button className="ghost-btn" onClick={copyBulkText} disabled={!bulkText.trim()}>
+                  {copiedBulkText ? '✓ Copied' : '📋 Copy'}
                 </button>
                 {bulkResult && <span className="bulk-result">{bulkResult}</span>}
               </div>
@@ -403,16 +471,28 @@ export default function CareerLinks({
                   </div>
                 );
               }
+              const fav = isFavorite(c.id);
               return (
-                <div className="company-card" key={c.id}>
+                <div className={`company-card${fav ? ' favorited' : ''}`} key={c.id}>
                   <div className="company-name-row">
-                    <div className="company-name">{c.name}</div>
+                    <div className="company-name-main">
+                      <button
+                        className={`favorite-star${fav ? ' active' : ''}`}
+                        onClick={() => toggleFavorite(c.id)}
+                        disabled={!isAdmin}
+                        title={fav ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        {fav ? '★' : '☆'}
+                      </button>
+                      <div className="company-name">{c.name}</div>
+                    </div>
                     {isAdmin && (
                       <button className="edit-icon" onClick={() => startEdit(c)} title="Edit company">
                         ✎
                       </button>
                     )}
                   </div>
+                  {c.addedAt && <div className="company-added">Added {formatAddedAt(c.addedAt)}</div>}
                   {app && (
                     <div className="stage-row">
                       {isAdmin ? (

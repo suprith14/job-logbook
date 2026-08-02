@@ -57,6 +57,15 @@ function splitLines(text: string): string[] {
     .filter(Boolean);
 }
 
+function reorder<T extends { id: string }>(list: T[], id: string, dir: -1 | 1): T[] {
+  const idx = list.findIndex((item) => item.id === id);
+  const swapWith = idx + dir;
+  if (idx === -1 || swapWith < 0 || swapWith >= list.length) return list;
+  const next = [...list];
+  [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+  return next;
+}
+
 const ACTION_VERBS = [
   'led', 'built', 'developed', 'implemented', 'designed', 'improved', 'reduced', 'increased', 'created',
   'managed', 'launched', 'optimized', 'migrated', 'automated', 'mentored', 'collaborated', 'delivered',
@@ -229,6 +238,12 @@ function buildResumeText(resume: ResumeData): string {
   return lines.join('\n').trim() + '\n';
 }
 
+interface TailorResult {
+  missingKeywords: string[];
+  matchingStrengths: string[];
+  suggestions: string;
+}
+
 interface ResumeBuilderProps {
   resume: ResumeData;
   setResume: Dispatch<SetStateAction<ResumeData>>;
@@ -239,6 +254,21 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
   const ats = scoreResume(resume);
   const [copyStatus, setCopyStatus] = useState('idle');
 
+  const [showExportImport, setShowExportImport] = useState(false);
+  const [resumeJsonText, setResumeJsonText] = useState('');
+  const [importError, setImportError] = useState('');
+  const [copiedResumeJson, setCopiedResumeJson] = useState(false);
+
+  const [jobDescription, setJobDescription] = useState('');
+  const [tailoring, setTailoring] = useState(false);
+  const [tailorError, setTailorError] = useState('');
+  const [tailorResult, setTailorResult] = useState<TailorResult | null>(null);
+
+  const [improvingId, setImprovingId] = useState<string | null>(null);
+  const [improveErrorId, setImproveErrorId] = useState<string | null>(null);
+  const [improveError, setImproveError] = useState('');
+  const [improvedBullets, setImprovedBullets] = useState<Record<string, string[]>>({});
+
   async function onCopy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
@@ -247,6 +277,113 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
     }
     setCopyStatus('copied');
     setTimeout(() => setCopyStatus('idle'), 1500);
+  }
+
+  function exportResumeJson() {
+    if (!isAdmin) return;
+    setResumeJsonText(JSON.stringify(resume, null, 2));
+    setImportError('');
+    setShowExportImport(true);
+  }
+
+  async function copyResumeJson() {
+    try {
+      await navigator.clipboard.writeText(resumeJsonText);
+    } catch (err) {
+      return;
+    }
+    setCopiedResumeJson(true);
+    setTimeout(() => setCopiedResumeJson(false), 1500);
+  }
+
+  function importResumeJson() {
+    if (!isAdmin) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(resumeJsonText);
+    } catch (err) {
+      setImportError('Invalid JSON — check for a missing comma or bracket.');
+      return;
+    }
+    const p = parsed as Partial<ResumeData>;
+    if (!p || typeof p !== 'object' || typeof p.name !== 'string' || !Array.isArray(p.experience)) {
+      setImportError("That doesn't look like valid resume JSON — check the shape and try again.");
+      return;
+    }
+    setResume({ ...DEFAULT_RESUME, ...p });
+    setImportError('');
+  }
+
+  async function tailorToJob() {
+    if (!isAdmin || !jobDescription.trim()) return;
+    setTailoring(true);
+    setTailorError('');
+    setTailorResult(null);
+    try {
+      const allBullets = resume.experience.flatMap((e) => splitLines(e.bullets)).join('\n');
+      const res = await fetch('/api/resume-tailor-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jobDescription, skills: resume.skills, bullets: allBullets, summary: resume.summary }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setTailorError(data.error || 'Something went wrong. Try again.');
+        return;
+      }
+      setTailorResult(data);
+    } catch (err) {
+      setTailorError('Network error — try again.');
+    } finally {
+      setTailoring(false);
+    }
+  }
+
+  async function improveBullets(exp: ResumeData['experience'][number]) {
+    if (!isAdmin) return;
+    const bulletLines = splitLines(exp.bullets);
+    if (bulletLines.length === 0) return;
+    setImprovingId(exp.id);
+    setImproveErrorId(null);
+    setImproveError('');
+    try {
+      const res = await fetch('/api/resume-bullet-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bullets: bulletLines.join('\n'), role: exp.role, company: exp.company }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setImproveErrorId(exp.id);
+        setImproveError(data.error || 'Something went wrong. Try again.');
+        return;
+      }
+      setImprovedBullets((prev) => ({ ...prev, [exp.id]: data.bullets || [] }));
+    } catch (err) {
+      setImproveErrorId(exp.id);
+      setImproveError('Network error — try again.');
+    } finally {
+      setImprovingId(null);
+    }
+  }
+
+  function applyImprovedBullets(id: string) {
+    const improved = improvedBullets[id];
+    if (!improved) return;
+    updateExperience(id, 'bullets', improved.join('\n'));
+    setImprovedBullets((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }
+
+  function discardImprovedBullets(id: string) {
+    setImprovedBullets((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   }
 
   function update<K extends keyof ResumeData>(field: K, value: ResumeData[K]) {
@@ -274,6 +411,10 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
     setResume((prev) => ({ ...prev, experience: prev.experience.filter((e) => e.id !== id) }));
   }
 
+  function moveExperience(id: string, dir: -1 | 1) {
+    setResume((prev) => ({ ...prev, experience: reorder(prev.experience, id, dir) }));
+  }
+
   function updateEducation(id: string, field: string, value: string) {
     setResume((prev) => ({
       ...prev,
@@ -290,6 +431,10 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
 
   function removeEducation(id: string) {
     setResume((prev) => ({ ...prev, education: prev.education.filter((e) => e.id !== id) }));
+  }
+
+  function moveEducation(id: string, dir: -1 | 1) {
+    setResume((prev) => ({ ...prev, education: reorder(prev.education, id, dir) }));
   }
 
   function updateProject(id: string, field: string, value: string) {
@@ -310,6 +455,10 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
     setResume((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
   }
 
+  function moveProject(id: string, dir: -1 | 1) {
+    setResume((prev) => ({ ...prev, projects: reorder(prev.projects, id, dir) }));
+  }
+
   function handlePrint() {
     window.print();
   }
@@ -324,6 +473,44 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
         Kept to a single column, standard headings and plain bullets on purpose — the layout most ATS parsers read
         correctly. Fill in the fields, then copy the text or print straight to PDF below.
       </p>
+
+      {isAdmin && (
+        <div className="bulk-section">
+          <div className="bulk-section-toggles">
+            <button className="bulk-toggle" onClick={() => setShowExportImport((v) => !v)}>
+              {showExportImport ? '▾' : '▸'} Export / import resume (JSON)
+            </button>
+            <button className="ghost-btn" onClick={exportResumeJson}>
+              ⬇ Export resume
+            </button>
+          </div>
+          {showExportImport && (
+            <div className="bulk-panel">
+              <div className="bulk-hint">
+                Export fills this box with the whole resume as JSON — copy it out to review or polish with an AI
+                assistant, then paste the edited JSON back here and import to apply the changes.
+              </div>
+              <textarea
+                className="bulk-textarea mono-textarea"
+                rows={10}
+                placeholder="Click Export above, or paste resume JSON here to import"
+                value={resumeJsonText}
+                onChange={(e) => setResumeJsonText(e.target.value)}
+                spellCheck={false}
+              />
+              <div className="bulk-actions">
+                <button onClick={importResumeJson} disabled={!resumeJsonText.trim()}>
+                  Import
+                </button>
+                <button className="ghost-btn" onClick={copyResumeJson} disabled={!resumeJsonText.trim()}>
+                  {copiedResumeJson ? '✓ Copied' : '📋 Copy'}
+                </button>
+                {importError && <span className="bulk-result" style={{ color: 'var(--rose)' }}>{importError}</span>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className={`ats-score-card ats-${ats.rating.toLowerCase().replace(/\s+/g, '-')}`}>
         <div className="ats-score-top">
@@ -345,6 +532,63 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           ))}
         </ul>
       </div>
+
+      {isAdmin && (
+        <div className="add-form qa-form" style={{ marginBottom: 24 }}>
+          <div className="cat-title">✦ Tailor to a job description</div>
+          <textarea
+            className="qa-textarea"
+            rows={4}
+            placeholder="Paste the target job description here"
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+          />
+          <button className="add-concept-btn" onClick={tailorToJob} disabled={tailoring || !jobDescription.trim()}>
+            {tailoring ? 'Analyzing…' : '✦ Analyze against my resume'}
+          </button>
+
+          {tailorError && <div className="discover-error">{tailorError}</div>}
+
+          {tailorResult && (
+            <div className="suggestions-panel">
+              <div className="cat-title">Gap analysis — advisory only, nothing changes automatically</div>
+              {tailorResult.missingKeywords.length > 0 && (
+                <>
+                  <div className="qa-tag" style={{ marginBottom: 6 }}>Missing keywords from the JD</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                    {tailorResult.missingKeywords.map((k) => (
+                      <span key={k} className="qa-category-tag">
+                        {k}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+              {tailorResult.matchingStrengths.length > 0 && (
+                <div className="qa-answer qa-right" style={{ marginBottom: 10 }}>
+                  <span className="qa-tag">Already aligns well</span>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                    {tailorResult.matchingStrengths.map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {tailorResult.suggestions && (
+                <div className="qa-answer qa-wrong">
+                  <span className="qa-tag">Suggestions</span>
+                  <span>{tailorResult.suggestions}</span>
+                </div>
+              )}
+              <div className="edit-actions">
+                <button className="ghost-btn" onClick={() => setTailorResult(null)}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {isAdmin && (
         <div className="resume-editor">
@@ -386,7 +630,7 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           <div className="cat-group">
             <div className="cat-title">Experience</div>
             <div className="resume-entries">
-              {resume.experience.map((exp) => (
+              {resume.experience.map((exp, i) => (
                 <div className="resume-entry" key={exp.id}>
                   <div className="resume-field-grid">
                     <input type="text" placeholder="Company" value={exp.company} onChange={(e) => updateExperience(exp.id, 'company', e.target.value)} />
@@ -402,7 +646,51 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
                     value={exp.bullets}
                     onChange={(e) => updateExperience(exp.id, 'bullets', e.target.value)}
                   />
-                  <button className="del-btn resume-remove" onClick={() => removeExperience(exp.id)}>✕ Remove</button>
+
+                  {improveErrorId === exp.id && improveError && (
+                    <div className="discover-error">{improveError}</div>
+                  )}
+
+                  {improvedBullets[exp.id] ? (
+                    <div className="suggestions-panel">
+                      <div className="cat-title">Suggested rewrite — review before applying</div>
+                      <ul style={{ margin: '4px 0 10px', paddingLeft: 18 }}>
+                        {improvedBullets[exp.id].map((b, bi) => (
+                          <li key={bi} style={{ marginBottom: 4 }}>{b}</li>
+                        ))}
+                      </ul>
+                      <div className="edit-actions">
+                        <button onClick={() => applyImprovedBullets(exp.id)}>Apply</button>
+                        <button className="ghost-btn" onClick={() => discardImprovedBullets(exp.id)}>
+                          Discard
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      className="ghost-btn resume-add-btn"
+                      onClick={() => improveBullets(exp)}
+                      disabled={improvingId === exp.id || splitLines(exp.bullets).length === 0}
+                    >
+                      {improvingId === exp.id ? 'Improving…' : '✦ Improve these bullets'}
+                    </button>
+                  )}
+
+                  <div className="flow-step-actions">
+                    <button className="ghost-btn" onClick={() => moveExperience(exp.id, -1)} disabled={i === 0}>
+                      ↑ Move up
+                    </button>
+                    <button
+                      className="ghost-btn"
+                      onClick={() => moveExperience(exp.id, 1)}
+                      disabled={i === resume.experience.length - 1}
+                    >
+                      ↓ Move down
+                    </button>
+                    <button className="del-btn resume-remove" onClick={() => removeExperience(exp.id)}>
+                      ✕ Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -412,7 +700,7 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           <div className="cat-group">
             <div className="cat-title">Education</div>
             <div className="resume-entries">
-              {resume.education.map((ed) => (
+              {resume.education.map((ed, i) => (
                 <div className="resume-entry" key={ed.id}>
                   <div className="resume-field-grid">
                     <input type="text" placeholder="School" value={ed.school} onChange={(e) => updateEducation(ed.id, 'school', e.target.value)} />
@@ -426,7 +714,21 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
                     value={ed.details}
                     onChange={(e) => updateEducation(ed.id, 'details', e.target.value)}
                   />
-                  <button className="del-btn resume-remove" onClick={() => removeEducation(ed.id)}>✕ Remove</button>
+                  <div className="flow-step-actions">
+                    <button className="ghost-btn" onClick={() => moveEducation(ed.id, -1)} disabled={i === 0}>
+                      ↑ Move up
+                    </button>
+                    <button
+                      className="ghost-btn"
+                      onClick={() => moveEducation(ed.id, 1)}
+                      disabled={i === resume.education.length - 1}
+                    >
+                      ↓ Move down
+                    </button>
+                    <button className="del-btn resume-remove" onClick={() => removeEducation(ed.id)}>
+                      ✕ Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -447,7 +749,7 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           <div className="cat-group">
             <div className="cat-title">Projects (optional)</div>
             <div className="resume-entries">
-              {resume.projects.map((p) => (
+              {resume.projects.map((p, i) => (
                 <div className="resume-entry" key={p.id}>
                   <div className="resume-field-grid">
                     <input type="text" placeholder="Project name" value={p.name} onChange={(e) => updateProject(p.id, 'name', e.target.value)} />
@@ -460,7 +762,21 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
                     value={p.description}
                     onChange={(e) => updateProject(p.id, 'description', e.target.value)}
                   />
-                  <button className="del-btn resume-remove" onClick={() => removeProject(p.id)}>✕ Remove</button>
+                  <div className="flow-step-actions">
+                    <button className="ghost-btn" onClick={() => moveProject(p.id, -1)} disabled={i === 0}>
+                      ↑ Move up
+                    </button>
+                    <button
+                      className="ghost-btn"
+                      onClick={() => moveProject(p.id, 1)}
+                      disabled={i === resume.projects.length - 1}
+                    >
+                      ↓ Move down
+                    </button>
+                    <button className="del-btn resume-remove" onClick={() => removeProject(p.id)}>
+                      ✕ Remove
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

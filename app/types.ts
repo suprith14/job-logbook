@@ -8,9 +8,17 @@ export interface Company {
   // ISO timestamp of when this company was added to the list — only set for
   // user-added companies (bundled seed companies have no real "added" date).
   addedAt?: string;
+  // Optional highlighted metadata — filled in by hand or via "✦ Enrich with AI".
+  industry?: string;
+  country?: string;
+  employeeSize?: string;
+  tier?: CompanyTier;
+  workPolicy?: string;
+  foundedYear?: string;
+  fundingStage?: string;
 }
 
-export type CompanyOverrides = Record<string, Partial<Pick<Company, 'name' | 'link' | 'category'>>>;
+export type CompanyOverrides = Record<string, Partial<Omit<Company, 'id'>>>;
 
 export interface Application {
   id: string | number;

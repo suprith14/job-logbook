@@ -3,7 +3,20 @@
 import { Dispatch, SetStateAction, useMemo, useState } from 'react';
 import { mergeCompanies } from '../data/companies';
 import { slugStatus, statusOptions, todayStr } from '../lib/status';
-import type { Application, Company, CompanyOverrides } from '../types';
+import type { Application, Company, CompanyOverrides, CompanyTier } from '../types';
+
+const TIER_OPTIONS: CompanyTier[] = ['FAANG / Tier-1', 'Product-based Tier-2', 'Service-based / IT-services', 'Startup'];
+const WORK_POLICY_OPTIONS = ['Remote', 'Hybrid', 'Onsite'];
+const EMPLOYEE_SIZE_OPTIONS = ['1-50', '51-500', '501-5,000', '5,000-50,000', '50,000+'];
+
+// Short badge text for a tier — used on the company card so the full label doesn't
+// have to fit in a small pill.
+const TIER_SHORT: Record<string, string> = {
+  'FAANG / Tier-1': 'FAANG / Tier-1',
+  'Product-based Tier-2': 'Product Tier-2',
+  'Service-based / IT-services': 'Service-based',
+  Startup: 'Startup',
+};
 
 interface CareerLinksProps {
   applications: Application[];
@@ -34,6 +47,29 @@ interface CompanyForm {
   category: string;
 }
 
+interface EditForm extends CompanyForm {
+  industry: string;
+  country: string;
+  employeeSize: string;
+  tier: string;
+  workPolicy: string;
+  foundedYear: string;
+  fundingStage: string;
+}
+
+const EMPTY_EDIT_FORM: EditForm = {
+  name: '',
+  link: '',
+  category: '',
+  industry: '',
+  country: '',
+  employeeSize: '',
+  tier: '',
+  workPolicy: '',
+  foundedYear: '',
+  fundingStage: '',
+};
+
 interface Suggestion {
   name: string;
   link: string;
@@ -59,7 +95,10 @@ export default function CareerLinks({
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [newCompany, setNewCompany] = useState<CompanyForm>({ name: '', link: '', category: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editBuffer, setEditBuffer] = useState<CompanyForm>({ name: '', link: '', category: '' });
+  const [editBuffer, setEditBuffer] = useState<EditForm>(EMPTY_EDIT_FORM);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  const [enrichErrorId, setEnrichErrorId] = useState<string | null>(null);
+  const [enrichError, setEnrichError] = useState('');
   const [bulkText, setBulkText] = useState('');
   const [bulkResult, setBulkResult] = useState('');
   const [showBulk, setShowBulk] = useState(false);
@@ -220,19 +259,75 @@ export default function CareerLinks({
   function startEdit(company: Company) {
     if (!isAdmin) return;
     setEditingId(company.id);
-    setEditBuffer({ name: company.name, link: company.link, category: company.category });
+    setEditBuffer({
+      name: company.name,
+      link: company.link,
+      category: company.category,
+      industry: company.industry || '',
+      country: company.country || '',
+      employeeSize: company.employeeSize || '',
+      tier: company.tier || '',
+      workPolicy: company.workPolicy || '',
+      foundedYear: company.foundedYear || '',
+      fundingStage: company.fundingStage || '',
+    });
   }
 
   function saveEdit(company: Company) {
     let link = editBuffer.link.trim();
     if (!link) return;
     if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
-    updateCompany(company, { name: editBuffer.name.trim() || company.name, link, category: editBuffer.category.trim() || company.category });
+    updateCompany(company, {
+      name: editBuffer.name.trim() || company.name,
+      link,
+      category: editBuffer.category.trim() || company.category,
+      industry: editBuffer.industry.trim() || undefined,
+      country: editBuffer.country.trim() || undefined,
+      employeeSize: editBuffer.employeeSize.trim() || undefined,
+      tier: (editBuffer.tier.trim() as CompanyTier) || undefined,
+      workPolicy: editBuffer.workPolicy.trim() || undefined,
+      foundedYear: editBuffer.foundedYear.trim() || undefined,
+      fundingStage: editBuffer.fundingStage.trim() || undefined,
+    });
     setEditingId(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
+  }
+
+  async function enrichCompany(company: Company) {
+    if (!isAdmin) return;
+    setEnrichingId(company.id);
+    setEnrichErrorId(null);
+    setEnrichError('');
+    try {
+      const res = await fetch('/api/company-enrich-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: company.name }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setEnrichErrorId(company.id);
+        setEnrichError(data.error || 'Something went wrong. Try again.');
+        return;
+      }
+      updateCompany(company, {
+        industry: data.industry || undefined,
+        country: data.country || undefined,
+        employeeSize: data.employeeSize || undefined,
+        tier: (data.tier as CompanyTier) || undefined,
+        workPolicy: data.workPolicy || undefined,
+        foundedYear: data.foundedYear || undefined,
+        fundingStage: data.fundingStage || undefined,
+      });
+    } catch (err) {
+      setEnrichErrorId(company.id);
+      setEnrichError('Network error — try again.');
+    } finally {
+      setEnrichingId(null);
+    }
   }
 
   async function findNewCompanies() {
@@ -464,6 +559,72 @@ export default function CareerLinks({
                       onChange={(e) => setEditBuffer({ ...editBuffer, category: e.target.value })}
                       placeholder="Category"
                     />
+                    <div className="edit-meta-grid">
+                      <input
+                        className="edit-input"
+                        type="text"
+                        value={editBuffer.industry}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, industry: e.target.value })}
+                        placeholder="Industry (e.g. Fintech)"
+                      />
+                      <input
+                        className="edit-input"
+                        type="text"
+                        value={editBuffer.country}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, country: e.target.value })}
+                        placeholder="Country of origin"
+                      />
+                      <select
+                        className="edit-input"
+                        value={editBuffer.employeeSize}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, employeeSize: e.target.value })}
+                      >
+                        <option value="">Employee size…</option>
+                        {EMPLOYEE_SIZE_OPTIONS.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="edit-input"
+                        value={editBuffer.tier}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, tier: e.target.value })}
+                      >
+                        <option value="">Interview tier…</option>
+                        {TIER_OPTIONS.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="edit-input"
+                        value={editBuffer.workPolicy}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, workPolicy: e.target.value })}
+                      >
+                        <option value="">Work policy…</option>
+                        {WORK_POLICY_OPTIONS.map((w) => (
+                          <option key={w} value={w}>
+                            {w}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="edit-input"
+                        type="text"
+                        value={editBuffer.foundedYear}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, foundedYear: e.target.value })}
+                        placeholder="Founded year"
+                      />
+                      <input
+                        className="edit-input"
+                        type="text"
+                        value={editBuffer.fundingStage}
+                        onChange={(e) => setEditBuffer({ ...editBuffer, fundingStage: e.target.value })}
+                        placeholder="Funding stage (e.g. Public)"
+                      />
+                    </div>
                     <div className="edit-actions">
                       <button onClick={() => saveEdit(c)}>Save</button>
                       <button className="ghost-btn" onClick={cancelEdit}>Cancel</button>
@@ -493,6 +654,32 @@ export default function CareerLinks({
                     )}
                   </div>
                   {c.addedAt && <div className="company-added">Added {formatAddedAt(c.addedAt)}</div>}
+
+                  {(c.tier || c.industry || c.country || c.employeeSize || c.workPolicy || c.foundedYear || c.fundingStage) && (
+                    <div className="company-meta-tags">
+                      {c.tier && <span className={`company-meta-tag tier-${slugStatus(c.tier)}`}>{TIER_SHORT[c.tier] || c.tier}</span>}
+                      {c.industry && <span className="company-meta-tag">{c.industry}</span>}
+                      {c.country && <span className="company-meta-tag">{c.country}</span>}
+                      {c.employeeSize && <span className="company-meta-tag">{c.employeeSize} employees</span>}
+                      {c.workPolicy && <span className="company-meta-tag">{c.workPolicy}</span>}
+                      {c.foundedYear && <span className="company-meta-tag">Founded {c.foundedYear}</span>}
+                      {c.fundingStage && <span className="company-meta-tag">{c.fundingStage}</span>}
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div className="company-enrich-row">
+                      <button
+                        className="ghost-btn"
+                        onClick={() => enrichCompany(c)}
+                        disabled={enrichingId === c.id}
+                      >
+                        {enrichingId === c.id ? 'Enriching…' : c.tier || c.industry ? '✦ Re-enrich with AI' : '✦ Enrich with AI'}
+                      </button>
+                      {enrichErrorId === c.id && enrichError && <span className="bulk-result" style={{ color: 'var(--rose)' }}>{enrichError}</span>}
+                    </div>
+                  )}
+
                   {app && (
                     <div className="stage-row">
                       {isAdmin ? (

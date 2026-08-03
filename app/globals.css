@@ -372,6 +372,27 @@ input:focus, select:focus{border-color:var(--amber-dim);}
   gap:8px;
 }
 .company-name{font-weight:600;font-size:14px;}
+.company-meta-tags{display:flex;flex-wrap:wrap;gap:5px;}
+.company-meta-tag{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:10px;
+  color:var(--text-muted);
+  background:var(--surface-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:2px 7px;
+  white-space:nowrap;
+}
+.company-meta-tag.tier-faang-tier-1{color:#e8a33d;border-color:var(--amber-dim);}
+.company-meta-tag.tier-product-based-tier-2{color:var(--teal);border-color:#2a6058;}
+.company-meta-tag.tier-service-based-it-services{color:var(--text-muted);}
+.company-meta-tag.tier-startup{color:var(--rose);border-color:#7a3b34;}
+.company-enrich-row{display:flex;align-items:center;gap:10px;}
+.edit-meta-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:6px;
+}
 .company-row{
   display:flex;
   justify-content:space-between;

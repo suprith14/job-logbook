@@ -29,6 +29,8 @@ export interface AppState {
   setCompanyOverrides: Dispatch<SetStateAction<CompanyOverrides>>;
   favoriteCompanyIds: string[];
   setFavoriteCompanyIds: Dispatch<SetStateAction<string[]>>;
+  hiddenCompanyIds: string[];
+  setHiddenCompanyIds: Dispatch<SetStateAction<string[]>>;
   hrQuestions: HRQuestion[];
   setHrQuestions: Dispatch<SetStateAction<HRQuestion[]>>;
   snippets: Snippet[];
@@ -65,6 +67,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
   const [customCompanies, setCustomCompanies] = useState<Company[]>([]);
   const [companyOverrides, setCompanyOverrides] = useState<CompanyOverrides>({});
   const [favoriteCompanyIds, setFavoriteCompanyIds] = useState<string[]>([]);
+  const [hiddenCompanyIds, setHiddenCompanyIds] = useState<string[]>([]);
   const [hrQuestions, setHrQuestions] = useState<HRQuestion[]>([]);
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [techRefs, setTechRefs] = useState<TechRefEntry[]>([]);
@@ -91,6 +94,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
         setCustomCompanies(data.customCompanies || []);
         setCompanyOverrides(data.companyOverrides || {});
         setFavoriteCompanyIds(data.favoriteCompanyIds || []);
+        setHiddenCompanyIds(data.hiddenCompanyIds || []);
         setHrQuestions(data.hrQuestions || []);
         setSnippets(data.snippets || []);
         setTechRefs(data.techRefs || []);
@@ -124,6 +128,7 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
           customCompanies,
           companyOverrides,
           favoriteCompanyIds,
+          hiddenCompanyIds,
           hrQuestions,
           snippets,
           techRefs,
@@ -148,13 +153,14 @@ export function useAppState(authChecked: boolean, isAdmin: boolean): AppState {
         });
     }, 400);
     return () => clearTimeout(t);
-  }, [applications, customCompanies, companyOverrides, favoriteCompanyIds, hrQuestions, snippets, techRefs, flows, prepSets, corporateScenarios, structureSets, dbScenarioSets, resume, coverLetter, defaultRole, loaded, isAdmin]);
+  }, [applications, customCompanies, companyOverrides, favoriteCompanyIds, hiddenCompanyIds, hrQuestions, snippets, techRefs, flows, prepSets, corporateScenarios, structureSets, dbScenarioSets, resume, coverLetter, defaultRole, loaded, isAdmin]);
 
   return {
     applications, setApplications,
     customCompanies, setCustomCompanies,
     companyOverrides, setCompanyOverrides,
     favoriteCompanyIds, setFavoriteCompanyIds,
+    hiddenCompanyIds, setHiddenCompanyIds,
     hrQuestions, setHrQuestions,
     snippets, setSnippets,
     techRefs, setTechRefs,

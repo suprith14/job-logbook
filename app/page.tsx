@@ -70,6 +70,7 @@ export default function Home() {
     customCompanies, setCustomCompanies,
     companyOverrides, setCompanyOverrides,
     favoriteCompanyIds, setFavoriteCompanyIds,
+    hiddenCompanyIds, setHiddenCompanyIds,
     hrQuestions, setHrQuestions,
     snippets, setSnippets,
     techRefs, setTechRefs,
@@ -85,8 +86,8 @@ export default function Home() {
   } = useAppState(authChecked, isAdmin);
 
   const companiesCount = useMemo(
-    () => mergeCompanies(customCompanies, companyOverrides).length,
-    [customCompanies, companyOverrides]
+    () => mergeCompanies(customCompanies, companyOverrides, hiddenCompanyIds).length,
+    [customCompanies, companyOverrides, hiddenCompanyIds]
   );
 
   if (!authChecked) {
@@ -133,6 +134,8 @@ export default function Home() {
           setCompanyOverrides={setCompanyOverrides}
           favoriteCompanyIds={favoriteCompanyIds}
           setFavoriteCompanyIds={setFavoriteCompanyIds}
+          hiddenCompanyIds={hiddenCompanyIds}
+          setHiddenCompanyIds={setHiddenCompanyIds}
           defaultRole={defaultRole}
           setDefaultRole={setDefaultRole}
           isAdmin={isAdmin}

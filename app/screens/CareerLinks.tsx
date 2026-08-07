@@ -1,6 +1,7 @@
 'use client';
 
-import { Dispatch, SetStateAction, useMemo, useState } from 'react';
+import { ChangeEvent, Dispatch, SetStateAction, useMemo, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { mergeCompanies } from '../data/companies';
 import { slugStatus, statusOptions, todayStr } from '../lib/status';
 import type { Application, Company, CompanyOverrides, CompanyTier } from '../types';
@@ -8,6 +9,10 @@ import type { Application, Company, CompanyOverrides, CompanyTier } from '../typ
 const TIER_OPTIONS: CompanyTier[] = ['FAANG / Tier-1', 'Product-based Tier-2', 'Service-based / IT-services', 'Startup'];
 const WORK_POLICY_OPTIONS = ['Remote', 'Hybrid', 'Onsite'];
 const EMPLOYEE_SIZE_OPTIONS = ['1-50', '51-500', '501-5,000', '5,000-50,000', '50,000+'];
+
+const EXCEL_COLUMNS = [
+  'Name', 'Link', 'Category', 'Industry', 'Country', 'Employee Size', 'Tier', 'Work Policy', 'Founded Year', 'Funding Stage', 'Favorite',
+];
 
 // Short badge text for a tier — used on the company card so the full label doesn't
 // have to fit in a small pill.
@@ -27,6 +32,8 @@ interface CareerLinksProps {
   setCompanyOverrides: Dispatch<SetStateAction<CompanyOverrides>>;
   favoriteCompanyIds: string[];
   setFavoriteCompanyIds: Dispatch<SetStateAction<string[]>>;
+  hiddenCompanyIds: string[];
+  setHiddenCompanyIds: Dispatch<SetStateAction<string[]>>;
   defaultRole: string;
   setDefaultRole: Dispatch<SetStateAction<string>>;
   isAdmin: boolean;
@@ -85,6 +92,8 @@ export default function CareerLinks({
   setCompanyOverrides,
   favoriteCompanyIds,
   setFavoriteCompanyIds,
+  hiddenCompanyIds,
+  setHiddenCompanyIds,
   defaultRole,
   setDefaultRole,
   isAdmin,
@@ -103,14 +112,17 @@ export default function CareerLinks({
   const [bulkResult, setBulkResult] = useState('');
   const [showBulk, setShowBulk] = useState(false);
   const [copiedBulkText, setCopiedBulkText] = useState(false);
+  const [importingExcel, setImportingExcel] = useState(false);
+  const [excelImportResult, setExcelImportResult] = useState('');
   const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState('');
+  const [discoverCategory, setDiscoverCategory] = useState('');
 
   const allCompanies = useMemo(
-    () => mergeCompanies(customCompanies, companyOverrides),
-    [customCompanies, companyOverrides]
+    () => mergeCompanies(customCompanies, companyOverrides, hiddenCompanyIds),
+    [customCompanies, companyOverrides, hiddenCompanyIds]
   );
 
   const categories = useMemo(() => [...new Set(allCompanies.map((c) => c.category))], [allCompanies]);
@@ -166,7 +178,7 @@ export default function CareerLinks({
       });
       return;
     }
-    window.open(company.link, '_blank', 'noopener');
+    if (company.link) window.open(company.link, '_blank', 'noopener');
     setApplications((prev) => [
       {
         id: Date.now() + Math.random(),
@@ -203,9 +215,9 @@ export default function CareerLinks({
     lines.forEach((line, idx) => {
       const parts = line.split(',').map((p) => p.trim());
       const name = parts[0];
-      let link = parts[1];
+      let link = parts[1] || '';
       const category = parts[2] || 'Added by you';
-      if (!name || !link) {
+      if (!name) {
         skipped++;
         return;
       }
@@ -213,14 +225,14 @@ export default function CareerLinks({
         skipped++;
         return;
       }
-      if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
+      if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
       toAdd.push({ id: `c${Date.now()}${Math.random()}${idx}`, name, link, category, addedAt: new Date().toISOString() });
       existingNames.add(name.toLowerCase());
     });
     if (toAdd.length > 0) {
       setCustomCompanies((prev) => [...prev, ...toAdd]);
     }
-    setBulkResult(`Added ${toAdd.length} compan${toAdd.length === 1 ? 'y' : 'ies'}.${skipped ? ` Skipped ${skipped} (duplicate or missing link).` : ''}`);
+    setBulkResult(`Added ${toAdd.length} compan${toAdd.length === 1 ? 'y' : 'ies'}.${skipped ? ` Skipped ${skipped} (duplicate name, or missing name).` : ''}`);
     setBulkText('');
   }
 
@@ -244,6 +256,94 @@ export default function CareerLinks({
     setTimeout(() => setCopiedBulkText(false), 1500);
   }
 
+  function exportCompaniesExcel() {
+    if (!isAdmin) return;
+    const rows = customCompanies.map((c) => ({
+      Name: c.name,
+      Link: c.link,
+      Category: c.category,
+      Industry: c.industry || '',
+      Country: c.country || '',
+      'Employee Size': c.employeeSize || '',
+      Tier: c.tier || '',
+      'Work Policy': c.workPolicy || '',
+      'Founded Year': c.foundedYear || '',
+      'Funding Stage': c.fundingStage || '',
+      Favorite: favoriteSet.has(c.id) ? 'Yes' : 'No',
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: EXCEL_COLUMNS });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Companies');
+    XLSX.writeFile(workbook, 'companies.xlsx');
+  }
+
+  function handleExcelFile(e: ChangeEvent<HTMLInputElement>) {
+    if (!isAdmin) return;
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so re-selecting the same file fires onChange again
+    if (!file) return;
+    setImportingExcel(true);
+    setExcelImportResult('');
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target?.result;
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        const existingNames = new Set(allCompanies.map((c) => c.name.toLowerCase()));
+        const toAdd: Company[] = [];
+        const newFavoriteIds: string[] = [];
+        let skipped = 0;
+
+        rows.forEach((row, idx) => {
+          const name = String(row['Name'] || '').trim();
+          let link = String(row['Link'] || '').trim();
+          const category = String(row['Category'] || '').trim() || 'Added by you';
+          if (!name) {
+            skipped++;
+            return;
+          }
+          if (existingNames.has(name.toLowerCase())) {
+            skipped++;
+            return;
+          }
+          if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+          const id = `c${Date.now()}${Math.random()}${idx}`;
+          const tierValue = String(row['Tier'] || '').trim();
+          toAdd.push({
+            id,
+            name,
+            link,
+            category,
+            addedAt: new Date().toISOString(),
+            industry: String(row['Industry'] || '').trim() || undefined,
+            country: String(row['Country'] || '').trim() || undefined,
+            employeeSize: String(row['Employee Size'] || '').trim() || undefined,
+            tier: (TIER_OPTIONS as string[]).includes(tierValue) ? (tierValue as CompanyTier) : undefined,
+            workPolicy: String(row['Work Policy'] || '').trim() || undefined,
+            foundedYear: String(row['Founded Year'] || '').trim() || undefined,
+            fundingStage: String(row['Funding Stage'] || '').trim() || undefined,
+          });
+          existingNames.add(name.toLowerCase());
+          if (String(row['Favorite'] || '').trim().toLowerCase() === 'yes') newFavoriteIds.push(id);
+        });
+
+        if (toAdd.length > 0) setCustomCompanies((prev) => [...prev, ...toAdd]);
+        if (newFavoriteIds.length > 0) setFavoriteCompanyIds((prev) => [...prev, ...newFavoriteIds]);
+        setExcelImportResult(
+          `Added ${toAdd.length} compan${toAdd.length === 1 ? 'y' : 'ies'}.${skipped ? ` Skipped ${skipped} (duplicate name, or missing name).` : ''}`
+        );
+      } catch (err) {
+        setExcelImportResult("Could not read that file — make sure it's a valid .xlsx export.");
+      } finally {
+        setImportingExcel(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
   function updateCompany(company: Company, edits: Partial<Company>) {
     if (!isAdmin) return;
     if (company.id.startsWith('d')) {
@@ -254,6 +354,38 @@ export default function CareerLinks({
     } else {
       setCustomCompanies((prev) => prev.map((c) => (c.id === company.id ? { ...c, ...edits } : c)));
     }
+  }
+
+  // A lightweight confirmation gate, not real security — this app is already behind its
+  // own login, this just guards against an accidental click on a destructive action.
+  function confirmPassword(action: string): boolean {
+    const input = window.prompt(`Enter password to ${action}:`);
+    if (input === null) return false;
+    if (input !== '12345') {
+      window.alert('Incorrect password — nothing was deleted.');
+      return false;
+    }
+    return true;
+  }
+
+  function deleteCompany(company: Company) {
+    if (!isAdmin) return;
+    if (!confirmPassword(`delete "${company.name}"`)) return;
+    if (company.id.startsWith('d')) {
+      setHiddenCompanyIds((prev) => (prev.includes(company.id) ? prev : [...prev, company.id]));
+    } else {
+      setCustomCompanies((prev) => prev.filter((c) => c.id !== company.id));
+    }
+    setFavoriteCompanyIds((prev) => prev.filter((id) => id !== company.id));
+  }
+
+  function deleteAllCompanies() {
+    if (!isAdmin || allCompanies.length === 0) return;
+    if (!confirmPassword('delete ALL companies from the list')) return;
+    const defaultIds = allCompanies.filter((c) => c.id.startsWith('d')).map((c) => c.id);
+    setHiddenCompanyIds((prev) => [...new Set([...prev, ...defaultIds])]);
+    setCustomCompanies([]);
+    setFavoriteCompanyIds([]);
   }
 
   function startEdit(company: Company) {
@@ -339,7 +471,7 @@ export default function CareerLinks({
       const res = await fetch('/api/discover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ existingNames: allCompanies.map((c) => c.name) }),
+        body: JSON.stringify({ existingNames: allCompanies.map((c) => c.name), category: discoverCategory }),
       });
       const data = await res.json();
       if (data.error) {
@@ -396,6 +528,11 @@ export default function CareerLinks({
           <input type="checkbox" checked={favoritesOnly} onChange={(e) => setFavoritesOnly(e.target.checked)} />
           ★ Favorites only
         </label>
+        {isAdmin && (
+          <button className="del-btn" onClick={deleteAllCompanies} disabled={allCompanies.length === 0} title="Requires password">
+            🗑 Delete all
+          </button>
+        )}
       </div>
 
       {isAdmin && (
@@ -453,9 +590,10 @@ export default function CareerLinks({
           {showBulk && (
             <div className="bulk-panel">
               <div className="bulk-hint">
-                One company per line: <code>Name, https://link, Category</code> — category is optional. Export fills
-                this box with your added companies in the same format — copy it out to review with an AI assistant,
-                edit as needed, then paste it back here and import.
+                One company per line: <code>Name, https://link, Category</code> — only the name is required, link and
+                category can be left blank and filled in later. Export fills this box with your added companies in
+                the same format — copy it out to review with an AI assistant, edit as needed, then paste it back here
+                and import.
               </div>
               <textarea
                 className="bulk-textarea"
@@ -479,7 +617,41 @@ export default function CareerLinks({
       )}
 
       {isAdmin && (
+        <div className="bulk-section">
+          <div className="bulk-section-toggles">
+            <button className="ghost-btn" onClick={exportCompaniesExcel} disabled={customCompanies.length === 0}>
+              ⬇ Export as Excel (.xlsx)
+            </button>
+            <label className="ghost-btn excel-import-label">
+              {importingExcel ? 'Importing…' : '⬆ Import from Excel'}
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleExcelFile}
+                disabled={importingExcel}
+                className="excel-import-input"
+              />
+            </label>
+            {excelImportResult && <span className="bulk-result">{excelImportResult}</span>}
+          </div>
+          <div className="bulk-hint" style={{ marginTop: 6 }}>
+            Exports your added companies (with tier/industry/country/etc.) as a real .xlsx file — open and edit it in
+            Excel or Google Sheets, then import it back. New rows are added; companies matching an existing name are
+            skipped, same as the text-based bulk import above.
+          </div>
+        </div>
+      )}
+
+      {isAdmin && (
         <div className="discover-row">
+          <select value={discoverCategory} onChange={(e) => setDiscoverCategory(e.target.value)}>
+            <option value="">Any category</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           <button className="discover-btn" onClick={findNewCompanies} disabled={discovering}>
             {discovering ? 'Searching…' : '✦ Find new companies'}
           </button>
@@ -648,9 +820,14 @@ export default function CareerLinks({
                       <div className="company-name">{c.name}</div>
                     </div>
                     {isAdmin && (
-                      <button className="edit-icon" onClick={() => startEdit(c)} title="Edit company">
-                        ✎
-                      </button>
+                      <div className="company-card-actions">
+                        <button className="edit-icon" onClick={() => startEdit(c)} title="Edit company">
+                          ✎
+                        </button>
+                        <button className="edit-icon del-icon" onClick={() => deleteCompany(c)} title="Delete company (requires password)">
+                          ✕
+                        </button>
+                      </div>
                     )}
                   </div>
                   {c.addedAt && <div className="company-added">Added {formatAddedAt(c.addedAt)}</div>}
@@ -704,9 +881,13 @@ export default function CareerLinks({
                     </div>
                   )}
                   <div className="company-row">
-                    <a className="link-btn" href={c.link} target="_blank" rel="noopener noreferrer">
-                      Open career page ↗
-                    </a>
+                    {c.link ? (
+                      <a className="link-btn" href={c.link} target="_blank" rel="noopener noreferrer">
+                        Open career page ↗
+                      </a>
+                    ) : (
+                      <span className="link-btn no-link">No link yet — edit to add one</span>
+                    )}
                     {isAdmin && (
                       <button
                         className={`apply-btn${done ? ' done' : ''}`}

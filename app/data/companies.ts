@@ -97,9 +97,14 @@ export const DEFAULT_COMPANIES: Company[] = RAW_COMPANIES.map(([name, link, cate
   category,
 }));
 
-export function mergeCompanies(customCompanies: Company[], companyOverrides: CompanyOverrides): Company[] {
-  const defaults = DEFAULT_COMPANIES.map((c) =>
+export function mergeCompanies(
+  customCompanies: Company[],
+  companyOverrides: CompanyOverrides,
+  hiddenCompanyIds: string[] = []
+): Company[] {
+  const hidden = new Set(hiddenCompanyIds);
+  const defaults = DEFAULT_COMPANIES.filter((c) => !hidden.has(c.id)).map((c) =>
     companyOverrides[c.id] ? { ...c, ...companyOverrides[c.id] } : c
   );
-  return [...defaults, ...customCompanies];
+  return [...defaults, ...customCompanies.filter((c) => !hidden.has(c.id))];
 }

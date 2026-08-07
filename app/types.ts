@@ -67,6 +67,8 @@ export interface ResumeProject {
   name: string;
   link: string;
   description: string;
+  start?: string;
+  end?: string;
 }
 
 export interface ResumeData {
@@ -224,5 +226,6 @@ export interface PersistedState {
   structureSets?: StructureSet[];
   dbScenarioSets?: DBScenarioSet[];
   favoriteCompanyIds?: string[];
+  hiddenCompanyIds?: string[];
   settings?: AppSettings;
 }

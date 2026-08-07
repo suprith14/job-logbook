@@ -177,7 +177,6 @@ function scoreResume(resume: ResumeData): ATSResult {
 function buildResumeText(resume: ResumeData): string {
   const lines: string[] = [];
   lines.push(resume.name);
-  lines.push(resume.title);
   const contact = [resume.location, resume.phone, resume.email, resume.linkedin, resume.website].filter(Boolean);
   lines.push(contact.join(' | '));
   lines.push('');
@@ -188,8 +187,38 @@ function buildResumeText(resume: ResumeData): string {
     lines.push('');
   }
 
+  if (resume.experience && resume.experience.length > 0) {
+    lines.push('EXPERIENCE');
+    resume.experience.forEach((exp) => {
+      lines.push(`${exp.role}, ${exp.company}${exp.location ? ' | ' + exp.location : ''}`);
+      lines.push(`${exp.start} – ${exp.end}`);
+      splitLines(exp.bullets).forEach((b) => lines.push(`- ${b}`));
+      lines.push('');
+    });
+  }
+
+  if (resume.projects && resume.projects.length > 0) {
+    lines.push('PROJECTS');
+    resume.projects.forEach((p) => {
+      const dates = [p.start, p.end].filter(Boolean).join(' – ');
+      lines.push(`${p.name}${p.link ? ' | ' + p.link : ''}${dates ? '    ' + dates : ''}`);
+      if (p.description) lines.push(p.description);
+      lines.push('');
+    });
+  }
+
+  if (resume.education && resume.education.length > 0) {
+    lines.push('EDUCATION');
+    resume.education.forEach((ed) => {
+      lines.push(`${ed.degree}, ${ed.school}`);
+      lines.push(`${ed.start} – ${ed.end}`);
+      if (ed.details) lines.push(ed.details);
+      lines.push('');
+    });
+  }
+
   if (resume.skills) {
-    lines.push('SKILLS');
+    lines.push('TECHNICAL SKILLS');
     lines.push(
       resume.skills
         .split(',')
@@ -200,39 +229,10 @@ function buildResumeText(resume: ResumeData): string {
     lines.push('');
   }
 
-  if (resume.experience && resume.experience.length > 0) {
-    lines.push('EXPERIENCE');
-    resume.experience.forEach((exp) => {
-      lines.push(`${exp.role} — ${exp.company}${exp.location ? ' | ' + exp.location : ''}`);
-      lines.push(`${exp.start} – ${exp.end}`);
-      splitLines(exp.bullets).forEach((b) => lines.push(`- ${b}`));
-      lines.push('');
-    });
-  }
-
-  if (resume.education && resume.education.length > 0) {
-    lines.push('EDUCATION');
-    resume.education.forEach((ed) => {
-      lines.push(`${ed.degree} — ${ed.school}`);
-      lines.push(`${ed.start} – ${ed.end}`);
-      if (ed.details) lines.push(ed.details);
-      lines.push('');
-    });
-  }
-
   if (resume.certifications) {
     lines.push('CERTIFICATIONS');
     splitLines(resume.certifications).forEach((c) => lines.push(`- ${c}`));
     lines.push('');
-  }
-
-  if (resume.projects && resume.projects.length > 0) {
-    lines.push('PROJECTS');
-    resume.projects.forEach((p) => {
-      lines.push(`${p.name}${p.link ? ' | ' + p.link : ''}`);
-      if (p.description) lines.push(p.description);
-      lines.push('');
-    });
   }
 
   return lines.join('\n').trim() + '\n';
@@ -249,6 +249,9 @@ interface ResumeBuilderProps {
   setResume: Dispatch<SetStateAction<ResumeData>>;
   isAdmin: boolean;
 }
+
+// Sections whose suggestions are several new items to review/select (vs a single rewrite).
+const ADDITIONS_SECTIONS = new Set(['skills', 'certifications']);
 
 export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuilderProps) {
   const ats = scoreResume(resume);
@@ -268,6 +271,134 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
   const [improveErrorId, setImproveErrorId] = useState<string | null>(null);
   const [improveError, setImproveError] = useState('');
   const [improvedBullets, setImprovedBullets] = useState<Record<string, string[]>>({});
+
+  // Shared AI-suggestion state for every other section (Summary, Skills, per-Project
+  // description, per-Education details, Certifications) — keyed by a string per field
+  // (e.g. "summary", "project:abc123") so any number of entries can have a suggestion
+  // pending at once without stepping on each other.
+  const [sectionLoading, setSectionLoading] = useState<string | null>(null);
+  const [sectionError, setSectionError] = useState<{ key: string; message: string } | null>(null);
+  const [sectionSuggestions, setSectionSuggestions] = useState<Record<string, string[]>>({});
+  const [selectedAdditions, setSelectedAdditions] = useState<Record<string, Set<string>>>({});
+
+  async function fetchSectionSuggestion(key: string, section: string, content: string, context: string) {
+    if (!isAdmin) return;
+    setSectionLoading(key);
+    setSectionError(null);
+    try {
+      const res = await fetch('/api/resume-section-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section, content, context }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setSectionError({ key, message: data.error || 'Something went wrong. Try again.' });
+        return;
+      }
+      const suggestions: string[] = data.suggestions || [];
+      setSectionSuggestions((prev) => ({ ...prev, [key]: suggestions }));
+      if (ADDITIONS_SECTIONS.has(section)) {
+        setSelectedAdditions((prev) => ({ ...prev, [key]: new Set(suggestions) }));
+      }
+    } catch (err) {
+      setSectionError({ key, message: 'Network error — try again.' });
+    } finally {
+      setSectionLoading(null);
+    }
+  }
+
+  function dismissSectionSuggestion(key: string) {
+    setSectionSuggestions((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setSelectedAdditions((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function toggleAddition(key: string, item: string) {
+    setSelectedAdditions((prev) => {
+      const nextSet = new Set(prev[key] || []);
+      if (nextSet.has(item)) nextSet.delete(item);
+      else nextSet.add(item);
+      return { ...prev, [key]: nextSet };
+    });
+  }
+
+  function renderRewriteSuggestion(key: string, onApply: (text: string) => void) {
+    const suggestions = sectionSuggestions[key];
+    return (
+      <>
+        {sectionError?.key === key && <div className="discover-error">{sectionError.message}</div>}
+        {suggestions && suggestions.length > 0 && (
+          <div className="suggestions-panel">
+            <div className="cat-title">Suggested rewrite — review before applying</div>
+            <p className="tech-explanation">{suggestions[0]}</p>
+            <div className="edit-actions">
+              <button
+                onClick={() => {
+                  onApply(suggestions[0]);
+                  dismissSectionSuggestion(key);
+                }}
+              >
+                Apply
+              </button>
+              <button className="ghost-btn" onClick={() => dismissSectionSuggestion(key)}>
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  function renderAdditionsSuggestion(key: string, onApply: (selected: string[]) => void) {
+    const suggestions = sectionSuggestions[key];
+    const selected = selectedAdditions[key] || new Set<string>();
+    return (
+      <>
+        {sectionError?.key === key && <div className="discover-error">{sectionError.message}</div>}
+        {suggestions && suggestions.length > 0 && (
+          <div className="suggestions-panel">
+            <div className="cat-title">Suggested additions — review before adding</div>
+            <div className="qa-list">
+              {suggestions.map((s) => (
+                <label className="suggestion-card" key={s}>
+                  <input type="checkbox" checked={selected.has(s)} onChange={() => toggleAddition(key, s)} />
+                  <div>{s}</div>
+                </label>
+              ))}
+            </div>
+            <div className="edit-actions">
+              <button
+                onClick={() => {
+                  onApply(Array.from(selected));
+                  dismissSectionSuggestion(key);
+                }}
+                disabled={selected.size === 0}
+              >
+                Add selected
+              </button>
+              <button className="ghost-btn" onClick={() => dismissSectionSuggestion(key)}>
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  function mergeUnique(existing: string[], additions: string[]): string[] {
+    const lower = existing.map((e) => e.toLowerCase());
+    return [...existing, ...additions.filter((a) => !lower.includes(a.toLowerCase()))];
+  }
 
   async function onCopy(text: string) {
     try {
@@ -447,7 +578,7 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
   function addProject() {
     setResume((prev) => ({
       ...prev,
-      projects: [...prev.projects, { id: `p${Date.now()}${Math.random()}`, name: '', description: '', link: '' }],
+      projects: [...prev.projects, { id: `p${Date.now()}${Math.random()}`, name: '', description: '', link: '', start: '', end: '' }],
     }));
   }
 
@@ -596,7 +727,12 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
             <div className="cat-title">Header</div>
             <div className="resume-field-grid">
               <input type="text" placeholder="Full name" value={resume.name} onChange={(e) => update('name', e.target.value)} />
-              <input type="text" placeholder="Title / headline" value={resume.title} onChange={(e) => update('title', e.target.value)} />
+              <input
+                type="text"
+                placeholder="Title / headline (internal only — not printed)"
+                value={resume.title}
+                onChange={(e) => update('title', e.target.value)}
+              />
               <input type="text" placeholder="Location" value={resume.location} onChange={(e) => update('location', e.target.value)} />
               <input type="text" placeholder="Phone" value={resume.phone} onChange={(e) => update('phone', e.target.value)} />
               <input type="text" placeholder="Email" value={resume.email} onChange={(e) => update('email', e.target.value)} />
@@ -614,17 +750,14 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
               onChange={(e) => update('summary', e.target.value)}
               placeholder="2-3 sentence summary of your experience and strengths"
             />
-          </div>
-
-          <div className="cat-group">
-            <div className="cat-title">Skills (comma-separated)</div>
-            <textarea
-              className="qa-textarea"
-              rows={2}
-              value={resume.skills}
-              onChange={(e) => update('skills', e.target.value)}
-              placeholder="React, TypeScript, Node.js, …"
-            />
+            <button
+              className="ghost-btn resume-add-btn"
+              onClick={() => fetchSectionSuggestion('summary', 'summary', resume.summary, resume.title)}
+              disabled={sectionLoading === 'summary'}
+            >
+              {sectionLoading === 'summary' ? 'Improving…' : '✦ Improve summary'}
+            </button>
+            {renderRewriteSuggestion('summary', (text) => update('summary', text))}
           </div>
 
           <div className="cat-group">
@@ -698,6 +831,53 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           </div>
 
           <div className="cat-group">
+            <div className="cat-title">Projects (optional)</div>
+            <div className="resume-entries">
+              {resume.projects.map((p, i) => (
+                <div className="resume-entry" key={p.id}>
+                  <div className="resume-field-grid">
+                    <input type="text" placeholder="Project name" value={p.name} onChange={(e) => updateProject(p.id, 'name', e.target.value)} />
+                    <input type="text" placeholder="Link (optional)" value={p.link} onChange={(e) => updateProject(p.id, 'link', e.target.value)} />
+                    <input type="text" placeholder="Start (optional)" value={p.start || ''} onChange={(e) => updateProject(p.id, 'start', e.target.value)} />
+                    <input type="text" placeholder="End (optional)" value={p.end || ''} onChange={(e) => updateProject(p.id, 'end', e.target.value)} />
+                  </div>
+                  <textarea
+                    className="qa-textarea"
+                    rows={2}
+                    placeholder="One or two lines on what it does and your role"
+                    value={p.description}
+                    onChange={(e) => updateProject(p.id, 'description', e.target.value)}
+                  />
+                  <button
+                    className="ghost-btn resume-add-btn"
+                    onClick={() => fetchSectionSuggestion(`project:${p.id}`, 'projectDescription', p.description, p.name)}
+                    disabled={sectionLoading === `project:${p.id}` || !p.description.trim()}
+                  >
+                    {sectionLoading === `project:${p.id}` ? 'Improving…' : '✦ Improve description'}
+                  </button>
+                  {renderRewriteSuggestion(`project:${p.id}`, (text) => updateProject(p.id, 'description', text))}
+                  <div className="flow-step-actions">
+                    <button className="ghost-btn" onClick={() => moveProject(p.id, -1)} disabled={i === 0}>
+                      ↑ Move up
+                    </button>
+                    <button
+                      className="ghost-btn"
+                      onClick={() => moveProject(p.id, 1)}
+                      disabled={i === resume.projects.length - 1}
+                    >
+                      ↓ Move down
+                    </button>
+                    <button className="del-btn resume-remove" onClick={() => removeProject(p.id)}>
+                      ✕ Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="ghost-btn resume-add-btn" onClick={addProject}>+ Add project</button>
+          </div>
+
+          <div className="cat-group">
             <div className="cat-title">Education</div>
             <div className="resume-entries">
               {resume.education.map((ed, i) => (
@@ -714,6 +894,16 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
                     value={ed.details}
                     onChange={(e) => updateEducation(ed.id, 'details', e.target.value)}
                   />
+                  <button
+                    className="ghost-btn resume-add-btn"
+                    onClick={() =>
+                      fetchSectionSuggestion(`education:${ed.id}`, 'educationDetails', ed.details, `${ed.degree}, ${ed.school}`)
+                    }
+                    disabled={sectionLoading === `education:${ed.id}`}
+                  >
+                    {sectionLoading === `education:${ed.id}` ? 'Improving…' : '✦ Suggest details'}
+                  </button>
+                  {renderRewriteSuggestion(`education:${ed.id}`, (text) => updateEducation(ed.id, 'details', text))}
                   <div className="flow-step-actions">
                     <button className="ghost-btn" onClick={() => moveEducation(ed.id, -1)} disabled={i === 0}>
                       ↑ Move up
@@ -736,6 +926,28 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           </div>
 
           <div className="cat-group">
+            <div className="cat-title">Technical skills (comma-separated)</div>
+            <textarea
+              className="qa-textarea"
+              rows={2}
+              value={resume.skills}
+              onChange={(e) => update('skills', e.target.value)}
+              placeholder="React, TypeScript, Node.js, …"
+            />
+            <button
+              className="ghost-btn resume-add-btn"
+              onClick={() => fetchSectionSuggestion('skills', 'skills', resume.skills, resume.title)}
+              disabled={sectionLoading === 'skills'}
+            >
+              {sectionLoading === 'skills' ? 'Thinking…' : '✦ Suggest more skills'}
+            </button>
+            {renderAdditionsSuggestion('skills', (selected) => {
+              const existing = resume.skills.split(',').map((s) => s.trim()).filter(Boolean);
+              update('skills', mergeUnique(existing, selected).join(', '));
+            })}
+          </div>
+
+          <div className="cat-group">
             <div className="cat-title">Certifications (one per line, optional)</div>
             <textarea
               className="qa-textarea"
@@ -744,43 +956,17 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
               onChange={(e) => update('certifications', e.target.value)}
               placeholder="AWS Certified Cloud Practitioner"
             />
-          </div>
-
-          <div className="cat-group">
-            <div className="cat-title">Projects (optional)</div>
-            <div className="resume-entries">
-              {resume.projects.map((p, i) => (
-                <div className="resume-entry" key={p.id}>
-                  <div className="resume-field-grid">
-                    <input type="text" placeholder="Project name" value={p.name} onChange={(e) => updateProject(p.id, 'name', e.target.value)} />
-                    <input type="text" placeholder="Link (optional)" value={p.link} onChange={(e) => updateProject(p.id, 'link', e.target.value)} />
-                  </div>
-                  <textarea
-                    className="qa-textarea"
-                    rows={2}
-                    placeholder="One or two lines on what it does and your role"
-                    value={p.description}
-                    onChange={(e) => updateProject(p.id, 'description', e.target.value)}
-                  />
-                  <div className="flow-step-actions">
-                    <button className="ghost-btn" onClick={() => moveProject(p.id, -1)} disabled={i === 0}>
-                      ↑ Move up
-                    </button>
-                    <button
-                      className="ghost-btn"
-                      onClick={() => moveProject(p.id, 1)}
-                      disabled={i === resume.projects.length - 1}
-                    >
-                      ↓ Move down
-                    </button>
-                    <button className="del-btn resume-remove" onClick={() => removeProject(p.id)}>
-                      ✕ Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button className="ghost-btn resume-add-btn" onClick={addProject}>+ Add project</button>
+            <button
+              className="ghost-btn resume-add-btn"
+              onClick={() => fetchSectionSuggestion('certifications', 'certifications', resume.certifications, resume.title)}
+              disabled={sectionLoading === 'certifications'}
+            >
+              {sectionLoading === 'certifications' ? 'Thinking…' : '✦ Suggest certifications'}
+            </button>
+            {renderAdditionsSuggestion('certifications', (selected) => {
+              const existing = splitLines(resume.certifications);
+              update('certifications', mergeUnique(existing, selected).join('\n'));
+            })}
           </div>
         </div>
       )}
@@ -795,7 +981,6 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
       <div className="cat-title">Preview — this is what prints</div>
       <div className="resume-preview" id="resume-print-area">
         <div className="r-name">{resume.name}</div>
-        <div className="r-title">{resume.title}</div>
         <div className="r-contact">{contactLine}</div>
 
         {resume.summary && (
@@ -805,26 +990,13 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           </div>
         )}
 
-        {resume.skills && (
-          <div className="r-section">
-            <div className="r-heading">Skills</div>
-            <p className="r-skills">
-              {resume.skills
-                .split(',')
-                .map((s) => s.trim())
-                .filter(Boolean)
-                .join(', ')}
-            </p>
-          </div>
-        )}
-
         {resume.experience.length > 0 && (
           <div className="r-section">
             <div className="r-heading">Experience</div>
             {resume.experience.map((exp) => (
               <div className="r-entry" key={exp.id}>
                 <div className="r-entry-top">
-                  <span className="r-entry-title">{exp.role}{exp.company ? ` — ${exp.company}` : ''}</span>
+                  <span className="r-entry-title">{exp.role}{exp.company ? `, ${exp.company}` : ''}</span>
                   <span className="r-entry-dates">{exp.start} – {exp.end}</span>
                 </div>
                 {exp.location && <div className="r-entry-sub">{exp.location}</div>}
@@ -838,18 +1010,49 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
           </div>
         )}
 
+        {resume.projects.length > 0 && (
+          <div className="r-section">
+            <div className="r-heading">Projects</div>
+            {resume.projects.map((p) => (
+              <div className="r-entry" key={p.id}>
+                <div className="r-entry-top">
+                  <span className="r-entry-title">{p.name}</span>
+                  {(p.start || p.end) && (
+                    <span className="r-entry-dates">{[p.start, p.end].filter(Boolean).join(' – ')}</span>
+                  )}
+                </div>
+                {p.link && <div className="r-entry-sub">{p.link}</div>}
+                {p.description && <p className="r-summary">{p.description}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
         {resume.education.length > 0 && (
           <div className="r-section">
             <div className="r-heading">Education</div>
             {resume.education.map((ed) => (
               <div className="r-entry" key={ed.id}>
                 <div className="r-entry-top">
-                  <span className="r-entry-title">{ed.degree}{ed.school ? ` — ${ed.school}` : ''}</span>
+                  <span className="r-entry-title">{ed.degree}{ed.school ? `, ${ed.school}` : ''}</span>
                   <span className="r-entry-dates">{ed.start} – {ed.end}</span>
                 </div>
                 {ed.details && <div className="r-entry-sub">{ed.details}</div>}
               </div>
             ))}
+          </div>
+        )}
+
+        {resume.skills && (
+          <div className="r-section">
+            <div className="r-heading">Technical Skills</div>
+            <p className="r-skills">
+              {resume.skills
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .join(', ')}
+            </p>
           </div>
         )}
 
@@ -861,21 +1064,6 @@ export default function ResumeBuilder({ resume, setResume, isAdmin }: ResumeBuil
                 <li key={i}>{c}</li>
               ))}
             </ul>
-          </div>
-        )}
-
-        {resume.projects.length > 0 && (
-          <div className="r-section">
-            <div className="r-heading">Projects</div>
-            {resume.projects.map((p) => (
-              <div className="r-entry" key={p.id}>
-                <div className="r-entry-top">
-                  <span className="r-entry-title">{p.name}</span>
-                </div>
-                {p.link && <div className="r-entry-sub">{p.link}</div>}
-                {p.description && <p className="r-summary">{p.description}</p>}
-              </div>
-            ))}
           </div>
         )}
       </div>
